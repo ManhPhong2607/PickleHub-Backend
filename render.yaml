@@ -1,11 +1,11 @@
 # ==============================================================================
-# RENDER BLUEPRINT - PICKLEHUB MICROSERVICES (DATABASE-PER-SERVICE)
+# RENDER BLUEPRINT - PICKLEHUB ALL-IN-ONE (100% FREE PLAN COMPLIANT)
 # ==============================================================================
 
 envVarGroups:
   - name: picklehub-shared-env
     envVars:
-      # Database Connections (Internal Render Network)
+      # Database Connections (11 Separate Databases on Render PostgreSQL)
       - key: ConnectionStrings__AuthenDb
         value: postgres://picklehub_user:Ct5OG0HuOxhJGv38H8fJwse1k0zZRY4D@dpg-dacgvtp5efls73edohfg-a/picklehub_authen
       - key: ConnectionStrings__CatalogDb
@@ -67,193 +67,24 @@ envVarGroups:
       - key: SeedAdmin__Password
         value: "123456"
 
-      # Inter-service Communication URLs
-      - key: Services__CatalogUrl
-        value: http://catalog-service:8080/
-      - key: Services__InventoryUrl
-        value: http://inventory-service:8080/
-      - key: Services__CustomerUrl
-        value: http://customer-service:8080/
-      - key: Services__PaymentUrl
-        value: http://payment-service:8080/
-      - key: Services__SystemUrl
-        value: http://system-service:8080/
-      - key: Services__CartOrderUrl
-        value: http://cartorder-service:8080/
-
 services:
   # ----------------------------------------------------------------------------
-  # 1. PUBLIC WEB SERVICE: YARP API GATEWAY (PORT 8080)
-  # ----------------------------------------------------------------------------
+  # SINGLE WEB SERVICE HOSTING ALL MICROSERVICES VIA SUPERVISOR
+  # --------------------------------------------------------------------
   - type: web
-    name: picklehub-gateway
+    name: picklehub-backend
     env: docker
-    dockerfilePath: PickleHub.Gateway/Dockerfile
+    dockerfilePath: Dockerfile
     dockerContext: .
     plan: free
     region: singapore
     envVars:
       - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
-        value: Docker
+        value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: Cors__AllowedOrigins
         value: "*"
-
-  # ----------------------------------------------------------------------------
-  # 2. PRIVATE SERVICES: 11 MICROSERVICES
-  # ----------------------------------------------------------------------------
-  - type: pserv
-    name: authen-service
-    env: docker
-    dockerfilePath: PickleHub.Authen/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
-
-  - type: pserv
-    name: catalog-service
-    env: docker
-    dockerfilePath: PickleHub.Catalog/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
-
-  - type: pserv
-    name: customer-service
-    env: docker
-    dockerfilePath: PickleHub.Customers/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
-
-  - type: pserv
-    name: system-service
-    env: docker
-    dockerfilePath: PickleHub.System/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
-
-  - type: pserv
-    name: inventory-service
-    env: docker
-    dockerfilePath: PickleHub.Inventory/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
-
-  - type: pserv
-    name: auditlog-service
-    env: docker
-    dockerfilePath: PickleHub.AuditLog/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
-
-  - type: pserv
-    name: cartorder-service
-    env: docker
-    dockerfilePath: PickleHub.CartOrder/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
-
-  - type: pserv
-    name: payment-service
-    env: docker
-    dockerfilePath: PickleHub.Payment/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
-
-  - type: pserv
-    name: notification-service
-    env: docker
-    dockerfilePath: PickleHub.Notification/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
-
-  - type: pserv
-    name: review-service
-    env: docker
-    dockerfilePath: PickleHub.Review/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
-
-  - type: pserv
-    name: blog-service
-    env: docker
-    dockerfilePath: PickleHub.Blog/Dockerfile
-    dockerContext: .
-    plan: free
-    region: singapore
-    envVars:
-      - fromGroup: picklehub-shared-env
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
-      - key: ASPNETCORE_HTTP_PORTS
-        value: 8080
+      - key: DOTNET_gcServer
+        value: "0"
