@@ -1,0 +1,6 @@
+@PickleHub.Catalog_HostAddress = http://localhost:5177
+
+GET {{PickleHub.Catalog_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
