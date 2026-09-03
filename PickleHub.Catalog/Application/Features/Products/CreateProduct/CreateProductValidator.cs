@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace PickleHub.Catalog.Application.Features.Products.CreateProduct
 {

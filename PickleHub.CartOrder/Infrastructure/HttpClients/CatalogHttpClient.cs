@@ -50,9 +50,9 @@ public class CatalogHttpClient(HttpClient httpClient, IConfiguration config) : I
 
             return await response.Content.ReadFromJsonAsync<CatalogProductDto>(cancellationToken: ct);
         }
-        catch (Exception ex)
+        catch
         {
-            throw new HttpRequestException($"Không thể kết nối đến Catalog Service để lấy thông tin sản phẩm: {ex.Message}", ex);
+            return null;
         }
     }
 }

@@ -51,6 +51,7 @@ public class GetOrdersAdminQueryHandler(ICartOrderDbContext db)
             return new OrderSummaryDto
             {
                 Id = o.Id,
+                CustomerId = o.CustomerId,
                 Status = o.Status.ToString(),
                 PaymentMethod = o.PaymentMethod,
                 PaymentStatus = o.PaymentStatus.ToString(),
@@ -58,6 +59,10 @@ public class GetOrdersAdminQueryHandler(ICartOrderDbContext db)
                 ItemCount = o.Items.Sum(i => i.Quantity),
                 FirstItemName = firstItem?.ProductNameSnapshot ?? string.Empty,
                 FirstItemImage = firstItem?.ImageUrlSnapshot,
+                ShippingFullName = o.ShippingFullName,
+                ShippingPhone = o.ShippingPhone,
+                ShippingProvider = o.ShippingProvider,
+                TrackingNumber = o.TrackingNumber,
                 CreatedAt = o.CreatedAt
             };
         }).ToList();

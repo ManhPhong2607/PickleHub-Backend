@@ -7,6 +7,7 @@ using PickleHub.Review.Application.Features.AdminModeration;
 using PickleHub.Review.Application.Features.AdminReply;
 using PickleHub.Review.Application.Features.CreateReview;
 using PickleHub.Review.Application.Features.DeleteReview;
+using PickleHub.Review.Application.Features.GetAdminReviews;
 using PickleHub.Review.Application.Features.GetProductRatingSummary;
 using PickleHub.Review.Application.Features.GetProductReviews;
 using PickleHub.Review.Application.Features.ToggleLikeReview;
@@ -25,7 +26,32 @@ public class ReviewController(ISender mediator) : ControllerBase
         var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return Guid.TryParse(userIdStr, out var userId) ? userId : null;
     }
+
+    // API Lấy danh sách toàn bộ đánh giá cho Quản trị viên (Admin Review Moderation & Reply)
+    [HttpGet("/admin/reviews")]
+    [HttpGet("admin")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> GetAdminReviews([FromQuery] GetAdminReviewsQuery query, CancellationToken ct)
+    {
+        var result = await mediator.Send(query, ct);
+        return Ok(result);
+    }
     
+    // API Lấy Cloudinary Signed Upload Signature bảo mật cho Review
+    [HttpGet("upload-signature")]
+    [Authorize]
+    public async Task<IActionResult> GetUploadSignature(
+        [FromQuery] Guid orderId,
+        [FromQuery] Guid productId)
+    {
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue) return Unauthorized();
+
+        var query = new PickleHub.Review.Application.Features.GetCloudinarySignature.GetCloudinarySignatureQuery(userId.Value, orderId, productId);
+        var result = await mediator.Send(query);
+        return Ok(result);
+    }
+
     // API Tạo mới bài đánh giá sản phẩm (Bắt buộc OrderId theo Rule FR-26)
     [HttpPost]
     [Authorize]
@@ -69,8 +95,20 @@ public class ReviewController(ISender mediator) : ControllerBase
     }
 
 
-// API Lấy danh sách đánh giá của sản phẩm (Hỗ trợ phân trang & bộ lọc)
+    // API Lấy danh sách bài đánh giá cá nhân của User đang đăng nhập
+    [HttpGet("me")]
+    [Authorize]
+    public async Task<IActionResult> GetMyReviews()
+    {
+        var userId = GetCurrentUserId();
+        if (!userId.HasValue) return Unauthorized();
 
+        var query = new PickleHub.Review.Application.Features.GetMyReviews.GetMyReviewsQuery(userId.Value);
+        var result = await mediator.Send(query);
+        return Ok(result);
+    }
+
+    // API Lấy danh sách đánh giá của sản phẩm (Hỗ trợ phân trang & bộ lọc)
     [HttpGet("product/{productId:guid}")]
     public async Task<IActionResult> GetProductReviews(
         Guid productId,

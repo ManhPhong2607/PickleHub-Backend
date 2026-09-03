@@ -14,7 +14,7 @@ public class PaymentHttpClient(HttpClient httpClient, IConfiguration config) : I
     {
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Post, "payments/create-link");
+            var request = new HttpRequestMessage(HttpMethod.Post, "internal/payments/create-link");
             
             var internalToken = config["Security:InternalApiKey"]
                 ?? throw new InvalidOperationException("Thiếu cấu hình Security:InternalApiKey");

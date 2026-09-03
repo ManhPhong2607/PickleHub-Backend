@@ -59,7 +59,7 @@ public class CartController(ISender mediator) : ControllerBase
     public async Task<ActionResult<CartDto>> MergeCart([FromBody] MergeCartRequest request, CancellationToken ct)
     {
         var userId = GetUserId();
-        var result = await mediator.Send(new MergeCartCommand(userId, request.SessionId), ct);
+        var result = await mediator.Send(new MergeCartCommand(userId, request.SessionId, request.GuestItems), ct);
         return Ok(result);
     }
     
@@ -90,4 +90,4 @@ public class CartController(ISender mediator) : ControllerBase
 
 public record AddCartItemRequest(Guid ProductVariantId, int Quantity, string? SessionId = null);
 public record UpdateCartItemRequest(int Quantity);
-public record MergeCartRequest(string SessionId);
+public record MergeCartRequest(string SessionId, List<GuestCartItemDto>? GuestItems = null);

@@ -1,11 +1,13 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PickleHub.Catalog.Application.Features.Categories.CreateCategory;
 using PickleHub.Catalog.Application.Features.Categories.DeleteCategory;
 using PickleHub.Catalog.Application.Features.Categories.GetCategory;
+using PickleHub.Catalog.Application.Features.Categories.RemoveCategoryImage;
 using PickleHub.Catalog.Application.Features.Categories.UpdateCategory;
 using PickleHub.Catalog.Application.Features.Categories.UpdateCategoryAttributeSchema;
+using PickleHub.Catalog.Application.Features.Categories.UploadCategoryImage;
 
 namespace PickleHub.Catalog.Controllers
 {
@@ -44,6 +46,23 @@ namespace PickleHub.Catalog.Controllers
             return NoContent();
         }
 
+        [HttpPost("{id:guid}/image")]
+        [Authorize(Roles = "Admin")]
+        [Consumes("multipart/form-data")]
+        public async Task<IActionResult> UploadImage(Guid id, [FromForm] IFormFile file, CancellationToken ct)
+        {
+            var result = await mediator.Send(new UploadCategoryImageCommand(id, file), ct);
+            return Ok(result);
+        }
+
+        [HttpDelete("{id:guid}/image")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RemoveImage(Guid id, CancellationToken ct)
+        {
+            var result = await mediator.Send(new RemoveCategoryImageCommand(id), ct);
+            return Ok(result);
+        }
+
         [HttpPut("{id:guid}/attribute-schema")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateAttributeSchema(Guid id, [FromBody] UpdateCategoryAttributeSchemaCommand command, CancellationToken ct)
@@ -53,4 +72,3 @@ namespace PickleHub.Catalog.Controllers
         }
     }
 }
-

@@ -11,6 +11,11 @@ namespace PickleHub.Catalog.Application.Features.Products.DTOs
         public string Description { get; set; } = string.Empty;
         public decimal BasePrice { get; set; }
         public decimal EffectivePrice { get; set; }
+        public decimal MinPrice { get; set; }
+        public decimal MaxPrice { get; set; }
+        public decimal EffectiveMinPrice { get; set; }
+        public decimal EffectiveMaxPrice { get; set; }
+        public bool IsSinglePrice => MinPrice == MaxPrice;
         public bool IsOnSale { get; set; }
         public decimal? SalePercent { get; set; }
         public DateTime? SaleStartsAt { get; set; }

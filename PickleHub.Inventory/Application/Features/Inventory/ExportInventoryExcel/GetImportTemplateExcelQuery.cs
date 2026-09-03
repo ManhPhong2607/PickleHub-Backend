@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using MediatR;
 using PickleHub.Inventory.Application.Common.Interfaces;
 using PickleHub.Inventory.Domain.Repositories;
@@ -61,33 +61,40 @@ namespace PickleHub.Inventory.Application.Features.Inventory.ExportInventoryExce
 
             var row = 2;
 
-            // Nhóm sản phẩm CHƯA TỪNG nhập kho lên đầu tiên - đây là nhóm cần action rõ ràng nhất
-            // (nhập kho lần đầu cho sản phẩm mới), tô màu xanh dương để phân biệt với nhóm sắp hết hàng.
-            foreach (var v in neverStocked)
-            {
-                sheet.Cell(row, 1).Value = v.VariantId.ToString();
-                sheet.Cell(row, 2).Value = v.ProductId.ToString();
-                sheet.Cell(row, 3).Value = v.Sku;
-                sheet.Cell(row, 4).Value = "Chưa nhập kho";
-                sheet.Cell(row, 6).Value = string.Empty;
-                sheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#eff6ff");
-                row++;
-            }
-
-            foreach (var item in ordered)
+            // 1. Duyệt qua toàn bộ sản phẩm hiện có theo đúng thứ tự như file Xuất Excel
+            foreach (var item in items)
             {
                 sheet.Cell(row, 1).Value = item.ProductVariantId.ToString();
                 sheet.Cell(row, 2).Value = item.ProductId.ToString();
                 sheet.Cell(row, 3).Value = item.SkuSnapshot;
                 sheet.Cell(row, 4).Value = item.Quantity; // chỉ tham khảo, KHÔNG dùng cột này khi import
                 // Cột 5 (Số lượng nhập thêm) cố tình để trống - admin tự điền.
-                sheet.Cell(row, 6).Value = string.Empty; // ngưỡng mới, để trống = giữ nguyên
+                sheet.Cell(row, 5).Value = string.Empty;
+                // Cột 6 (Ngưỡng cảnh báo mới) để trống = giữ nguyên.
+                sheet.Cell(row, 6).Value = string.Empty;
+                // Cột 7 (Ghi chú) để trống.
+                sheet.Cell(row, 7).Value = string.Empty;
 
-                if (item.IsOutOfStock)
-                    sheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#fef2f2");
-                else if (item.IsLowStock)
-                    sheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#fffbeb");
+                // Tô màu đỏ nhạt cho các sản phẩm sắp hết hàng hoặc đã hết hàng
+                if (item.IsOutOfStock || item.IsLowStock || item.Quantity <= item.LowStockThreshold)
+                {
+                    sheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#fee2e2");
+                }
 
+                row++;
+            }
+
+            // 2. Các sản phẩm mới trên Catalog nhưng CHƯA TỪNG nhập kho (nếu có) được thêm ở cuối
+            foreach (var v in neverStocked)
+            {
+                sheet.Cell(row, 1).Value = v.VariantId.ToString();
+                sheet.Cell(row, 2).Value = v.ProductId.ToString();
+                sheet.Cell(row, 3).Value = v.Sku;
+                sheet.Cell(row, 4).Value = "Chưa nhập kho";
+                sheet.Cell(row, 5).Value = string.Empty;
+                sheet.Cell(row, 6).Value = string.Empty;
+                sheet.Cell(row, 7).Value = string.Empty;
+                sheet.Row(row).Style.Fill.BackgroundColor = XLColor.FromHtml("#eff6ff");
                 row++;
             }
 

@@ -22,9 +22,23 @@ namespace PickleHub.Catalog.Domain.Repositories
         Task<Dictionary<Guid, PromotionBadgeDto>> GetActiveDiscountsForProductsAsync(
             List<Guid> productIds, CancellationToken ct = default);
 
+        Task<List<ProductPromotionDetailRow>> GetPromotionsDetailsForProductsAsync(
+            List<Guid> productIds, CancellationToken ct = default);
+
         void Add(Promotion promotion);
         void Update(Promotion promotion);
         void Remove(Promotion promotion);
     }
+
+    public record ProductPromotionDetailRow(
+        Guid ProductId,
+        Guid PromotionId,
+        string PromotionName,
+        decimal DiscountPercent,
+        DateTime StartsAt,
+        DateTime EndsAt,
+        bool IsActive,
+        int Priority
+    );
 }
 

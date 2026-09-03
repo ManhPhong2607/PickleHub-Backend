@@ -34,13 +34,16 @@ public class UpdateShippingCommandHandler(
             order.Status = OrderStatus.Confirmed;
         }
 
-        var trackingUrl = request.ShippingProvider.ToUpper() switch
+        var cleanCode = request.TrackingNumber.Trim();
+        var trackingUrl = request.ShippingProvider.ToUpper().Trim() switch
         {
-            "GHTK" => $"https://i.ghtk.vn/{request.TrackingNumber}",
-            "GHN" => $"https://donhang.ghn.vn/?id={request.TrackingNumber}",
-            "VIETTELPOST" => $"https://viettelpost.com.vn/tra-cuu-hanh-trinh-don/{request.TrackingNumber}",
-            "JANDT" or "JT" => $"https://www.jtexpress.vn/index/query/gzquery.html?bills={request.TrackingNumber}",
-            _ => $"https://google.com/search?q={request.TrackingNumber}"
+            "GHTK" => $"https://i.ghtk.vn/{cleanCode}",
+            "GHN" => $"https://donhang.ghn.vn/?order_code={cleanCode}",
+            "VIETTELPOST" or "VIETTEL" => $"https://viettelpost.com.vn/tra-cuu-hanh-trinh-don/?code={cleanCode}",
+            "JANDT" or "JT" => $"https://jtexpress.vn/vi/tracking?billcode={cleanCode}",
+            "VNPOST" or "EMS" => $"http://www.vnpost.vn/vi-vn/dinh-vi/buu-pham?key={cleanCode}",
+            "SPX" or "SHOPEE" => $"https://spx.vn/track?tracking_number={cleanCode}",
+            _ => $"https://google.com/search?q={cleanCode}"
         };
 
         var oldStatus = order.Status;

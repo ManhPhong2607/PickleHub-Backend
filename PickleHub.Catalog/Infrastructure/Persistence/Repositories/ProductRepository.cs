@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using PickleHub.Catalog.Domain.Entities;
 using PickleHub.Catalog.Domain.Enums;
 using PickleHub.Catalog.Domain.Repositories;
@@ -26,15 +26,6 @@ namespace PickleHub.Catalog.Infrastructure.Persistence.Repositories
                 query = query.Where(p => p.Id != excludeId.Value);
             return await query.AnyAsync(ct);
         }
-        // Query thẳng bảng product_variant (không qua Product.Variants navigation) vì cần check TOÀN BỘ variant trong hệ thống, không chỉ variant của 1 Product cụ thể.
-        public async Task<bool> ExistsBySkuAsync(string sku, Guid? excludeVariantId = null, CancellationToken ct = default)
-        {
-            var query = _db.Set<ProductVariant>().Where(v => v.Sku == sku);
-            if (excludeVariantId.HasValue)
-                query = query.Where(v => v.Id != excludeVariantId.Value);
-            return await query.AnyAsync(ct);
-        }
-
 
         public async Task<Product?> GetByIdAsync(Guid id, CancellationToken ct = default)
         {
@@ -48,7 +39,7 @@ namespace PickleHub.Catalog.Infrastructure.Persistence.Repositories
                 .Include(p => p.Brand)
                 .Include(p => p.Images)
                 .Include(p => p.Variants)
-                .FirstOrDefaultAsync(p => p.Id == id, ct);
+                .FirstOrDefaultAsync(p => p.Id == id || p.Variants.Any(v => v.Id == id), ct);
         }
 
         public async Task<Product?> GetBySlugAsync(string slug, CancellationToken ct = default)
@@ -84,16 +75,16 @@ namespace PickleHub.Catalog.Infrastructure.Persistence.Repositories
                 query = query.Where(p => p.BrandId == brandId.Value);
 
             if (minPrice.HasValue)
-                query = query.Where(p => p.BasePrice >= minPrice.Value);
+                query = query.Where(p => p.Variants.Any(v => v.Price >= minPrice.Value));
 
             if (maxPrice.HasValue)
-                query = query.Where(p => p.BasePrice <= maxPrice.Value);
+                query = query.Where(p => p.Variants.Any(v => v.Price <= maxPrice.Value));
 
             query = sortBy switch
             {
                 SortBy.Newest => query.OrderByDescending(p => p.CreatedAt),
-                SortBy.PriceAsc => query.OrderBy(p => p.BasePrice),
-                SortBy.PriceDesc => query.OrderByDescending(p => p.BasePrice),
+                SortBy.PriceAsc => query.OrderBy(p => p.Variants.Min(v => v.Price)),
+                SortBy.PriceDesc => query.OrderByDescending(p => p.Variants.Max(v => v.Price)),
                 SortBy.BestSelling => query.OrderByDescending(p => p.SoldCount),
                 SortBy.MostViewed => query.OrderByDescending(p => p.ViewCount),
                 _ => query.OrderByDescending(p => p.CreatedAt)
@@ -118,6 +109,7 @@ namespace PickleHub.Catalog.Infrastructure.Persistence.Repositories
                 .Include(p => p.Brand)
                 .Include(p => p.Category)
                 .Include(p => p.Images)
+                .Include(p => p.Variants)
                 .AsQueryable();
 
             if (status.HasValue)
@@ -133,16 +125,16 @@ namespace PickleHub.Catalog.Infrastructure.Persistence.Repositories
                 query = query.Where(p => p.BrandId == brandId.Value);
 
             if (minPrice.HasValue)
-                query = query.Where(p => p.BasePrice >= minPrice.Value);
+                query = query.Where(p => p.Variants.Any(v => v.Price >= minPrice.Value));
 
             if (maxPrice.HasValue)
-                query = query.Where(p => p.BasePrice <= maxPrice.Value);
+                query = query.Where(p => p.Variants.Any(v => v.Price <= maxPrice.Value));
 
             query = sortBy switch
             {
                 SortBy.Newest => query.OrderByDescending(p => p.CreatedAt),
-                SortBy.PriceAsc => query.OrderBy(p => p.BasePrice),
-                SortBy.PriceDesc => query.OrderByDescending(p => p.BasePrice),
+                SortBy.PriceAsc => query.OrderBy(p => p.Variants.Min(v => v.Price)),
+                SortBy.PriceDesc => query.OrderByDescending(p => p.Variants.Max(v => v.Price)),
                 SortBy.BestSelling => query.OrderByDescending(p => p.SoldCount),
                 SortBy.MostViewed => query.OrderByDescending(p => p.ViewCount),
                 _ => query.OrderByDescending(p => p.CreatedAt)
@@ -162,21 +154,49 @@ namespace PickleHub.Catalog.Infrastructure.Persistence.Repositories
             _db.Products.Update(product);
         }
 
+        public void Remove(Product product)
+        {
+            _db.Products.Remove(product);
+        }
+
 
         // Sản phẩm liên quan: cùng danh mục, đang Active, loại trừ chính nó.
         // Ưu tiên bán chạy trước (tín hiệu mạnh nhất), sau đó tới lượt xem nhiều (tín hiệu quan tâm).
+        // Nếu không đủ limit, bù thêm các sản phẩm Active bán chạy nhất khác.
         public async Task<List<Product>> GetRelatedAsync(Guid productId, Guid categoryId, int limit, CancellationToken ct = default)
         {
-            return await _db.Products
+            var related = await _db.Products
                .AsNoTracking()
                .Include(p => p.Category)
                .Include(p => p.Brand)
                .Include(p => p.Images)
+               .Include(p => p.Variants)
                .Where(p => p.Status == ProductStatus.Active && p.CategoryId == categoryId && p.Id != productId)
                .OrderByDescending(p => p.SoldCount)
                .ThenByDescending(p => p.ViewCount)
                .Take(limit)
                .ToListAsync(ct);
+
+            if (related.Count < limit)
+            {
+                var needed = limit - related.Count;
+                var existingIds = related.Select(p => p.Id).Append(productId).ToList();
+                var backfill = await _db.Products
+                    .AsNoTracking()
+                    .Include(p => p.Category)
+                    .Include(p => p.Brand)
+                    .Include(p => p.Images)
+                    .Include(p => p.Variants)
+                    .Where(p => p.Status == ProductStatus.Active && !existingIds.Contains(p.Id))
+                    .OrderByDescending(p => p.SoldCount)
+                    .ThenByDescending(p => p.ViewCount)
+                    .Take(needed)
+                    .ToListAsync(ct);
+
+                related.AddRange(backfill);
+            }
+
+            return related;
         }
 
         public async Task<List<Product>> GetByIdsAsync(List<Guid> ids, CancellationToken ct = default)

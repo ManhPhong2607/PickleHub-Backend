@@ -112,7 +112,7 @@ namespace PickleHub.Catalog.Infrastructure.Persistence.Repositories
                     g => g.Key,
                     g => 
                     {
-                        var top = g.OrderByDescending(x => x.Priority).ThenBy(x => x.PromotionId).First();
+                        var top = g.OrderByDescending(x => x.Priority).First();
                         return new PromotionBadgeDto
                         {
                             PromotionId = top.PromotionId,
@@ -123,6 +123,32 @@ namespace PickleHub.Catalog.Infrastructure.Persistence.Repositories
                             DiscountPercent = top.DiscountPercent
                         };
                     });
+        }
+
+        public async Task<List<ProductPromotionDetailRow>> GetPromotionsDetailsForProductsAsync(
+             List<Guid> productIds, CancellationToken ct = default)
+        {
+            if (productIds.Count == 0) return new List<ProductPromotionDetailRow>();
+
+            var rows = await _db.PromotionProducts
+                .AsNoTracking()
+                .Where(pp => productIds.Contains(pp.ProductId))
+                .Join(_db.Promotions.AsNoTracking(),
+                    pp => pp.PromotionId,
+                    p => p.Id,
+                    (pp, p) => new ProductPromotionDetailRow(
+                        pp.ProductId,
+                        p.Id,
+                        p.Name,
+                        pp.DiscountPercent,
+                        p.StartsAt,
+                        p.EndsAt,
+                        p.IsActive,
+                        p.Priority
+                    ))
+                .ToListAsync(ct);
+
+            return rows;
         }
 
         public void Add(Promotion promotion) => _db.Promotions.Add(promotion);

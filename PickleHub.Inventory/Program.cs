@@ -14,7 +14,18 @@ builder.Services
     .AddCorsPolicy(builder.Configuration)
     .AddMessageBus(builder.Configuration)
     .AddSwaggerWithJwt()
-    .AddAuthorization()
+    .AddAuthorization(options =>
+    {
+        options.AddPolicy("ServiceClientPolicy", policy =>
+        {
+            policy.RequireAuthenticatedUser();
+            policy.RequireAssertion(context =>
+                context.User.IsInRole("Admin") ||
+                context.User.IsInRole("ServiceClient") ||
+                context.User.HasClaim(c => (c.Type == "scope" || c.Type == "client_id" || c.Type == "role" || c.Type == System.Security.Claims.ClaimTypes.Role) &&
+                                           (c.Value.Contains("internal_service") || c.Value.Contains("ServiceClient") || c.Value.Contains("Admin"))));
+        });
+    })
     .AddControllers()
     .AddJsonOptions(options =>
     {

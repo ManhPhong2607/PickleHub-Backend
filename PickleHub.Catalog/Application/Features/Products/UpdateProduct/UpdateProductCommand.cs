@@ -16,7 +16,10 @@ namespace PickleHub.Catalog.Application.Features.Products.UpdateProduct
        string Description,
        Guid CategoryId,
        Guid BrandId,
-       string? SpecsJson
+       string? SpecsJson = null,
+       decimal? Price = null,
+       decimal? BasePrice = null,
+       ProductStatus? Status = null
     ) : IRequest<ProductDetailDto>;
 
     public class UpdateProductHandler : IRequestHandler<UpdateProductCommand, ProductDetailDto>
@@ -44,6 +47,19 @@ namespace PickleHub.Catalog.Application.Features.Products.UpdateProduct
                 ? await GenerateUniqueSlugAsync(request.Name, request.Id, ct)
                 : product.Slug;
 
+            var newPrice = request.Price ?? request.BasePrice;
+
+            // Nếu sản phẩm chỉ có đúng 1 biến thể và có truyền giá mới, cập nhật giá cho biến thể đó
+            if (newPrice.HasValue && newPrice.Value > 0 && product.Variants.Count == 1)
+            {
+                var singleVariant = product.Variants.First();
+                product.UpdateVariant(singleVariant.Id, singleVariant.Sku, singleVariant.AttributesJson, newPrice.Value);
+            }
+
+            var effectiveBasePrice = product.Variants.Any() 
+                ? product.Variants.Min(v => v.Price) 
+                : (newPrice ?? product.BasePrice);
+
             product.Update(
                 request.Name,
                 slug,
@@ -52,6 +68,11 @@ namespace PickleHub.Catalog.Application.Features.Products.UpdateProduct
                 request.BrandId,
                 request.SpecsJson ?? "{}"
             );
+
+            if (request.Status.HasValue)
+            {
+                product.SetStatus(request.Status.Value);
+            }
 
             await _unitOfWork.SaveChangesAsync(ct);
 
@@ -64,15 +85,31 @@ namespace PickleHub.Catalog.Application.Features.Products.UpdateProduct
                 OccurredAt = DateTime.UtcNow
             }, ct);
 
+            var minPrice = product.Variants.Any() ? product.Variants.Min(v => v.Price) : product.BasePrice;
+            var maxPrice = product.Variants.Any() ? product.Variants.Max(v => v.Price) : product.BasePrice;
+
             return new ProductDetailDto
             {
                 Id = product.Id,
                 Name = product.Name,
                 Slug = product.Slug.Value,
                 Description = product.Description,
-                BasePrice = product.BasePrice,
+                BasePrice = minPrice,
+                MinPrice = minPrice,
+                MaxPrice = maxPrice,
+                EffectivePrice = minPrice,
+                EffectiveMinPrice = minPrice,
+                EffectiveMaxPrice = maxPrice,
                 Status = product.Status.ToString(),
                 SpecsJson = product.SpecsJson,
+                Variants = product.Variants.Select(v => new ProductVariantDto
+                {
+                    Id = v.Id,
+                    ProductId = v.ProductId,
+                    Sku = v.Sku,
+                    AttributesJson = v.AttributesJson,
+                    Price = v.Price
+                }).ToList()
             };
         }
 

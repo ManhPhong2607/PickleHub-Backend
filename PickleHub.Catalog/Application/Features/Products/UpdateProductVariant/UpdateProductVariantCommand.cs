@@ -30,10 +30,6 @@ namespace PickleHub.Catalog.Application.Features.Products.UpdateProductVariant
             var product = await _productRepository.GetByIdWithDetailAsync(request.ProductId, ct)
                 ?? throw new NotFoundException("Sản phẩm không tồn tại.");
 
-            // excludeVariantId = chính variant đang sửa - đổi Sku khác nhưng giữ nguyên chuỗi cũ (hoặc không đổi Sku) không được tính là trùng với chính nó.
-            if (await _productRepository.ExistsBySkuAsync(request.Sku, excludeVariantId: request.VariantId, ct: ct))
-                throw new ConflictException($"SKU '{request.Sku}' đã tồn tại trên hệ thống (có thể thuộc sản phẩm khác).");
-
             product.UpdateVariant(request.VariantId, request.Sku, request.AttributesJson, request.Price);
 
 

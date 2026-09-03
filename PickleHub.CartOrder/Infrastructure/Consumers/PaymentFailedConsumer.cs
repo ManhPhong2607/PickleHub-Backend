@@ -43,7 +43,7 @@ public class PaymentFailedConsumer(
             foreach (var item in order.Items)
             {
                 var targetVariantId = item.ProductVariantId != Guid.Empty ? item.ProductVariantId : item.ProductId;
-                await inventoryClient.ReleaseStockAsync(targetVariantId, item.Quantity);
+                await inventoryClient.ReleaseStockAsync(targetVariantId, item.Quantity, order.Id);
             }
             order.IsStockReserved = false;
         }

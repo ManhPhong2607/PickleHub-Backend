@@ -26,17 +26,17 @@ namespace PickleHub.Catalog.Application.Features.Products.DeleteProduct
 
         public async Task Handle(DeleteProductCommand request, CancellationToken ct)
         {
-            var product = await _productRepository.GetByIdAsync(request.Id, ct)
+            var product = await _productRepository.GetByIdWithDetailAsync(request.Id, ct)
                 ?? throw new NotFoundException("Sản phẩm không tồn tại.");
 
-            product.Hide();
+            _productRepository.Remove(product);
             await _unitOfWork.SaveChangesAsync(ct);
 
             await _publishEndpoint.Publish(new ProductStatusChangedEvent
             {
                 ProductId = product.Id,
                 ProductName = product.Name,
-                Action = "Hidden", 
+                Action = "Deleted", 
                 ActorUserId = _currentUser.UserId,
                 ActorEmail = _currentUser.Email ?? string.Empty,
                 OccurredAt = DateTime.UtcNow

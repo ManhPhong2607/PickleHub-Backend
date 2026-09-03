@@ -29,9 +29,6 @@ namespace PickleHub.Catalog.Application.Features.Products.AddProductVarriant
             var product = await _productRepository.GetByIdWithDetailAsync(request.ProductId, ct)
                 ?? throw new NotFoundException("Sản phẩm không tồn tại.");
 
-            if (await _productRepository.ExistsBySkuAsync(request.Sku, ct: ct))
-                throw new ConflictException($"SKU '{request.Sku}' đã tồn tại trên hệ thống (có thể thuộc sản phẩm khác).");
-
             var variant = product.AddVariant(request.Sku, request.AttributesJson, request.Price);
 
 

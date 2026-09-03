@@ -1,4 +1,4 @@
-﻿using PickleHub.Catalog.Domain.Enums;
+using PickleHub.Catalog.Domain.Enums;
 using PickleHub.Common.Domain;
 using PickleHub.Common.Exceptions;
 using PickleHub.Common.ValueObjects;
@@ -84,11 +84,8 @@ namespace PickleHub.Catalog.Domain.Entities
 
         public void Hide()
         {
-            if (Status == ProductStatus.Draft)
-                throw new DomainException("Sản phẩm đang ở trạng thái Draft, không cần ẩn.");
-
             Status = ProductStatus.Hidden;
-            SetUpdated();
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void Restore()
@@ -98,6 +95,12 @@ namespace PickleHub.Catalog.Domain.Entities
 
             Status = ProductStatus.Draft;
             SetUpdated();
+        }
+
+        public void SetStatus(ProductStatus status)
+        {
+            Status = status;
+            UpdatedAt = DateTime.UtcNow;
         }
 
         // image/video

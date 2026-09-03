@@ -1,4 +1,4 @@
-﻿using MassTransit;
+using MassTransit;
 using Microsoft.EntityFrameworkCore;
 using PickleHub.Common.Enums;
 using PickleHub.Common.Events.Order;
@@ -47,14 +47,19 @@ namespace PickleHub.Customers.Infrastructure.Consumers
                 return;
             }
 
-            var customer = await _customerRepository.GetByIdAsync(message.CustomerId, context.CancellationToken);
+            var customer = await _customerRepository.GetByUserIdAsync(message.CustomerId, context.CancellationToken)
+                ?? await _customerRepository.GetByIdAsync(message.CustomerId, context.CancellationToken);
+
             if (customer == null) 
             {
-                _logger.LogWarning("Không tìm thấy Customer [{CustomerId}] để cộng điểm tích lũy cho Order [{OrderId}", message.CustomerId, message.OrderId);
+                _logger.LogWarning("Không tìm thấy Customer [{CustomerId}] để cộng điểm tích lũy cho Order [{OrderId}].", message.CustomerId, message.OrderId);
                 return;
             }
 
-            var orderAmount = message.Items.Sum(i => i.Quantity * i.UnitPrice);
+            var orderAmount = message.TotalAmount > 0
+                ? message.TotalAmount
+                : message.Items.Sum(i => i.Quantity * i.UnitPrice);
+
             if (orderAmount <= 0) 
             {
                 return;

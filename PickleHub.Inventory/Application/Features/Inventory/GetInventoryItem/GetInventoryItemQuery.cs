@@ -30,6 +30,8 @@ namespace PickleHub.Inventory.Application.Features.Inventory.GetInventoryItem
                 ProductId = item.ProductId,
                 SkuSnapshot = item.SkuSnapshot,
                 Quantity = item.Quantity,
+                ReservedQuantity = item.ReservedQuantity,
+                AvailableQuantity = item.AvailableQuantity,
                 LowStockThreshold = item.LowStockThreshold,
                 IsLowStock = item.IsLowStock,
                 IsOutOfStock = item.IsOutOfStock,
