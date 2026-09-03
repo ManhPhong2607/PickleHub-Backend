@@ -1,17 +1,61 @@
 # ==============================================================================
-# RENDER INFRASTRUCTURE AS CODE (BLUEPRINT) FOR PICKLEHUB MICROSERVICES
+# RENDER BLUEPRINT - PICKLEHUB MICROSERVICES (DATABASE-PER-SERVICE PATTERN)
 # ==============================================================================
-databases:
-  - name: picklehub-postgres
-    databaseName: picklehub_main
-    user: postgres
-    plan: free
-    ipAllowList: [] # Chỉ cho phép internal Render services truy cập
+
+envVarGroups:
+  - name: picklehub-shared-env
+    envVars:
+      - key: AUTHEN_DB_CONN
+        sync: false
+      - key: CATALOG_DB_CONN
+        sync: false
+      - key: CUSTOMER_DB_CONN
+        sync: false
+      - key: SYSTEM_DB_CONN
+        sync: false
+      - key: INVENTORY_DB_CONN
+        sync: false
+      - key: AUDITLOG_DB_CONN
+        sync: false
+      - key: CARTORDER_DB_CONN
+        sync: false
+      - key: PAYMENT_DB_CONN
+        sync: false
+      - key: NOTIFICATION_DB_CONN
+        sync: false
+      - key: REVIEW_DB_CONN
+        sync: false
+      - key: BLOG_DB_CONN
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: JWT_ISSUER
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: PAYOS_CLIENT_ID
+        sync: false
+      - key: PAYOS_API_KEY
+        sync: false
+      - key: PAYOS_CHECKSUM_KEY
+        sync: false
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
 
 services:
-  # ────────────────────────────────────────────────────────────────────────────
+  # ----------------------------------------------------------------------------
   # 1. PUBLIC WEB SERVICE: YARP API GATEWAY (PORT 8080)
-  # ────────────────────────────────────────────────────────────────────────────
+  # ----------------------------------------------------------------------------
   - type: web
     name: picklehub-gateway
     env: docker
@@ -20,20 +64,23 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Docker
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: Jwt__SecretKey
-        generateValue: true
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
       - key: Cors__AllowedOrigins
-        value: "*" # Thay bằng domain Vercel của bạn sau khi deploy (VD: https://picklehub.vercel.app)
+        value: "*"
 
-  # ────────────────────────────────────────────────────────────────────────────
-  # 2. PRIVATE SERVICES (Chỉ gọi nội bộ qua Gateway, không public ra Internet)
-  # ────────────────────────────────────────────────────────────────────────────
+  # ----------------------------------------------------------------------------
+  # 2. PRIVATE MICROSERVICES (DATABASE-PER-SERVICE)
+  # ----------------------------------------------------------------------------
   - type: pserv
     name: authen-service
     env: docker
@@ -42,21 +89,29 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__AuthenDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: AUTHEN_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
+      - key: Resend__ApiKey
+        fromGroup: picklehub-shared-env
+        envVarKey: RESEND_API_KEY
+      - key: SeedAdmin__Email
+        fromGroup: picklehub-shared-env
+        envVarKey: SEED_ADMIN_EMAIL
+      - key: SeedAdmin__Password
+        fromGroup: picklehub-shared-env
+        envVarKey: SEED_ADMIN_PASSWORD
 
   - type: pserv
     name: catalog-service
@@ -66,27 +121,32 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__CatalogDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: CATALOG_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
+      - key: Security__InternalApiKey
+        fromGroup: picklehub-shared-env
+        envVarKey: INTERNAL_API_KEY
       - key: Cloudinary__CloudName
-        sync: false
+        fromGroup: picklehub-shared-env
+        envVarKey: CLOUDINARY_CLOUD_NAME
       - key: Cloudinary__ApiKey
-        sync: false
+        fromGroup: picklehub-shared-env
+        envVarKey: CLOUDINARY_API_KEY
       - key: Cloudinary__ApiSecret
-        sync: false
+        fromGroup: picklehub-shared-env
+        envVarKey: CLOUDINARY_API_SECRET
 
   - type: pserv
     name: customer-service
@@ -96,21 +156,23 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__CustomerDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: CUSTOMER_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
+      - key: Security__InternalApiKey
+        fromGroup: picklehub-shared-env
+        envVarKey: INTERNAL_API_KEY
 
   - type: pserv
     name: system-service
@@ -120,21 +182,20 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__SystemDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: SYSTEM_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
 
   - type: pserv
     name: inventory-service
@@ -144,23 +205,25 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__InventoryDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: INVENTORY_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
       - key: Security__InternalApiKey
-        generateValue: true
+        fromGroup: picklehub-shared-env
+        envVarKey: INTERNAL_API_KEY
+      - key: Services__CatalogUrl
+        value: http://catalog-service:8080/
 
   - type: pserv
     name: auditlog-service
@@ -170,21 +233,20 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__AuditLogDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: AUDITLOG_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
 
   - type: pserv
     name: cartorder-service
@@ -194,28 +256,33 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__CartOrderDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: CARTORDER_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
       - key: Security__InternalApiKey
-        fromService:
-          type: pserv
-          name: inventory-service
-          envVarKey: Security__InternalApiKey
-      - key: Services__InventoryServiceUrl
-        value: http://inventory-service:8080
+        fromGroup: picklehub-shared-env
+        envVarKey: INTERNAL_API_KEY
+      - key: Services__CatalogUrl
+        value: http://catalog-service:8080/
+      - key: Services__InventoryUrl
+        value: http://inventory-service:8080/
+      - key: Services__CustomerUrl
+        value: http://customer-service:8080/
+      - key: Services__PaymentUrl
+        value: http://payment-service:8080/
+      - key: Services__SystemUrl
+        value: http://system-service:8080/
 
   - type: pserv
     name: payment-service
@@ -225,21 +292,34 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__PaymentDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: PAYMENT_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
+      - key: Security__InternalApiKey
+        fromGroup: picklehub-shared-env
+        envVarKey: INTERNAL_API_KEY
+      - key: PayOS__ClientId
+        fromGroup: picklehub-shared-env
+        envVarKey: PAYOS_CLIENT_ID
+      - key: PayOS__ApiKey
+        fromGroup: picklehub-shared-env
+        envVarKey: PAYOS_API_KEY
+      - key: PayOS__ChecksumKey
+        fromGroup: picklehub-shared-env
+        envVarKey: PAYOS_CHECKSUM_KEY
+      - key: Services__CartOrderUrl
+        value: http://cartorder-service:8080/
 
   - type: pserv
     name: notification-service
@@ -249,21 +329,23 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__NotificationDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: NOTIFICATION_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
+      - key: Resend__ApiKey
+        fromGroup: picklehub-shared-env
+        envVarKey: RESEND_API_KEY
 
   - type: pserv
     name: review-service
@@ -273,21 +355,34 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__ReviewDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: REVIEW_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
+      - key: Security__InternalApiKey
+        fromGroup: picklehub-shared-env
+        envVarKey: INTERNAL_API_KEY
+      - key: Cloudinary__CloudName
+        fromGroup: picklehub-shared-env
+        envVarKey: CLOUDINARY_CLOUD_NAME
+      - key: Cloudinary__ApiKey
+        fromGroup: picklehub-shared-env
+        envVarKey: CLOUDINARY_API_KEY
+      - key: Cloudinary__ApiSecret
+        fromGroup: picklehub-shared-env
+        envVarKey: CLOUDINARY_API_SECRET
+      - key: Services__CartOrderUrl
+        value: http://cartorder-service:8080/
 
   - type: pserv
     name: blog-service
@@ -297,24 +392,31 @@ services:
     plan: free
     region: singapore
     envVars:
+      - fromGroup: picklehub-shared-env
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: ASPNETCORE_HTTP_PORTS
         value: 8080
       - key: ConnectionStrings__BlogDb
-        fromDatabase:
-          name: picklehub-postgres
-          property: connectionString
+        fromGroup: picklehub-shared-env
+        envVarKey: BLOG_DB_CONN
       - key: Jwt__SecretKey
-        fromService:
-          type: web
-          name: picklehub-gateway
-          envVarKey: Jwt__SecretKey
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_SECRET_KEY
       - key: Jwt__Issuer
-        value: picklehub
+        fromGroup: picklehub-shared-env
+        envVarKey: JWT_ISSUER
+      - key: Security__InternalApiKey
+        fromGroup: picklehub-shared-env
+        envVarKey: INTERNAL_API_KEY
       - key: Cloudinary__CloudName
-        sync: false
+        fromGroup: picklehub-shared-env
+        envVarKey: CLOUDINARY_CLOUD_NAME
       - key: Cloudinary__ApiKey
-        sync: false
+        fromGroup: picklehub-shared-env
+        envVarKey: CLOUDINARY_API_KEY
       - key: Cloudinary__ApiSecret
-        sync: false
+        fromGroup: picklehub-shared-env
+        envVarKey: CLOUDINARY_API_SECRET
+      - key: Services__CatalogUrl
+        value: http://catalog-service:8080/
