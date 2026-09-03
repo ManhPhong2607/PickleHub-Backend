@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using PickleHub.CartOrder.Domain.Entities;
 using PickleHub.Common.Enums;
+using PickleHub.Common.Exceptions;
 using PickleHub.CartOrder.Domain.Interfaces;
 using PickleHub.CartOrder.Infrastructure.Persistence;
 using PickleHub.Common.Events.Order;
@@ -27,7 +28,8 @@ public record CheckoutResponse(
     string Status,
     string PaymentMethod,
     string PaymentStatus,
-    string? PaymentUrl = null
+    string? PaymentUrl = null,
+    string? QrCode = null
 );
 
 public class CheckoutCommandHandler(
@@ -54,11 +56,14 @@ public class CheckoutCommandHandler(
             throw new InvalidOperationException("Giỏ hàng của bạn đang trống, hãy thêm sản phẩm trước khi đặt hàng.");
         }
 
+        // Khởi tạo OrderId trước để dùng làm referenceId đồng bộ cho Inventory và các Service
+        var orderId = Guid.NewGuid();
+
         // Gọi Customer Service lấy địa chỉ từ Sổ địa chỉ
         var address = await customerClient.GetAddressByIdAsync(request.AddressId, ct);
         if (address is null)
         {
-            throw new KeyNotFoundException($"Không tìm thấy thông tin địa chỉ giao hàng với mã ID {request.AddressId}.");
+            throw new NotFoundException($"Không tìm thấy thông tin địa chỉ giao hàng với mã ID {request.AddressId}.");
         }
 
         var shippingFullName = address.FullName;
@@ -68,18 +73,13 @@ public class CheckoutCommandHandler(
         var shippingWard = address.Ward;
         var shippingStreetAddress = address.StreetAddress;
 
-        // Gọi Customer Service lấy thông tin Email khách hàng
+        // Gọi Customer Service lấy thông tin Email khách hàng (fallback an toàn nếu profile chưa tạo)
         var customer = await customerClient.GetCustomerDetailsAsync(request.UserId, ct);
-        if (customer is null)
-        {
-            throw new KeyNotFoundException($"Không tìm thấy thông tin tài khoản khách hàng với mã ID {request.UserId}.");
-        }
-
-        var customerName = customer.FullName;
-        var customerEmail = customer.Email;
+        var customerName = customer?.FullName ?? shippingFullName;
+        var customerEmail = customer?.Email ?? string.Empty;
+        var loyaltyDiscountPercent = customer?.LoyaltyDiscountPercent ?? 0m;
 
         // Khởi tạo danh sách OrderItem và kiểm tra tồn kho & giá
-        var orderId = Guid.NewGuid();
         var orderItems = new List<OrderItem>();
         var subtotal = 0m;
         var eventItems = new List<OrderItemPayload>();
@@ -96,20 +96,20 @@ public class CheckoutCommandHandler(
                 var product = await catalogClient.GetProductDetailsAsync(targetVariantId, ct);
                 if (product is null)
                 {
-                    throw new KeyNotFoundException($"Sản phẩm hoặc biến thể ID {targetVariantId} không tồn tại trong hệ thống Catalog.");
+                    throw new NotFoundException($"Sản phẩm hoặc biến thể ID {targetVariantId} không tồn tại trong hệ thống Catalog.");
                 }
 
                 // Nếu từ đầu phát hiện không đủ tồn kho, ta sẽ không giữ chỗ nữa mà đánh dấu là thiếu hàng
                 if (isAllStockAvailable)
                 {
-                    var reserveSuccess = await inventoryClient.ReserveStockAsync(targetVariantId, cartItem.Quantity, ct);
+                    var reserveSuccess = await inventoryClient.ReserveStockAsync(targetVariantId, cartItem.Quantity, orderId, ct);
                     if (!reserveSuccess)
                     {
                         isAllStockAvailable = false;
                         // Giải phóng toàn bộ tồn kho đã giữ chỗ trước đó do không đủ hàng đồng bộ
                         foreach (var reserved in reservedItems)
                         {
-                            await inventoryClient.ReleaseStockAsync(reserved.ProductVariantId, reserved.Quantity, ct);
+                            await inventoryClient.ReleaseStockAsync(reserved.ProductVariantId, reserved.Quantity, orderId, ct);
                         }
                         reservedItems.Clear();
                     }
@@ -152,6 +152,7 @@ public class CheckoutCommandHandler(
 
                 eventItems.Add(new OrderItemPayload
                 {
+                    ProductId = product.Id,
                     ProductVariantId = targetVariantId,
                     ProductNameSnapshot = product.Name,
                     VariantAttributesSnapshot = variant?.Sku ?? string.Empty,
@@ -165,7 +166,7 @@ public class CheckoutCommandHandler(
             // Giải phóng toàn bộ tồn kho đã giữ chỗ nếu có lỗi bất kỳ trong quá trình xử lý loop
             foreach (var reserved in reservedItems)
             {
-                await inventoryClient.ReleaseStockAsync(reserved.ProductVariantId, reserved.Quantity, ct);
+                await inventoryClient.ReleaseStockAsync(reserved.ProductVariantId, reserved.Quantity, orderId, ct);
             }
             throw;
         }
@@ -173,20 +174,15 @@ public class CheckoutCommandHandler(
         decimal shippingFee = await systemClient.GetDefaultShippingFeeAsync(ct);
 
         // Loyalty áp dụng trên Subtotal (đã bao gồm sale từ Catalog) - KHÔNG áp lên phí ship.
-        // customer.LoyaltyDiscountPercent lấy từ Customer Service, tính động theo TotalSpent
-        // hiện tại - CartOrder không tự lưu/tính % này, chỉ đọc kết quả.
-        var loyaltyDiscountPercent = customer.LoyaltyDiscountPercent;
         var loyaltyDiscountAmount = loyaltyDiscountPercent > 0
             ? Math.Round(subtotal * (loyaltyDiscountPercent / 100m), 0)
             : 0m;
 
         decimal totalAmount = (subtotal - loyaltyDiscountAmount) + shippingFee;
 
-        // Logic tự động xác nhận:
-        // Đơn COD + Đủ hàng -> Tự động OrderStatus.Confirmed
-        // Đơn PayOS HOẶC Thiếu hàng -> OrderStatus.Pending (Chờ thanh toán / Chờ Admin duyệt kho)
-        var isCod = request.PaymentMethod.Equals("COD", StringComparison.OrdinalIgnoreCase);
-        var initialStatus = (isCod && isAllStockAvailable) ? OrderStatus.Confirmed : OrderStatus.Pending;
+        // Logic xác nhận đơn: Tất cả đơn hàng mới tạo (kể cả COD hay PayOS)
+        // đều luôn ở trạng thái Pending (Chờ xác nhận) cho đến khi Admin chủ động xác nhận duyệt đơn.
+        var initialStatus = OrderStatus.Pending;
 
         var order = new Order
         {
@@ -219,12 +215,14 @@ public class CheckoutCommandHandler(
 
         // 5. Nếu là đơn PayOS, gọi Payment Service để sinh liên kết thanh toán QR Code
         string? paymentUrl = null;
+        string? qrCode = null;
         if (request.PaymentMethod.Equals("PayOS", StringComparison.OrdinalIgnoreCase))
         {
             try
             {
                 var paymentResult = await paymentClient.CreatePaymentLinkAsync(orderId, totalAmount, ct);
                 paymentUrl = paymentResult?.CheckoutUrl;
+                qrCode = paymentResult?.QrCode;
                 if (string.IsNullOrEmpty(paymentUrl))
                 {
                     throw new Exception("Không nhận được URL thanh toán từ cổng PayOS.");
@@ -239,7 +237,7 @@ public class CheckoutCommandHandler(
                 // Giải phóng toàn bộ tồn kho đã giữ chỗ trước đó do lỗi cổng thanh toán
                 foreach (var reserved in reservedItems)
                 {
-                    await inventoryClient.ReleaseStockAsync(reserved.ProductVariantId, reserved.Quantity, ct);
+                    await inventoryClient.ReleaseStockAsync(reserved.ProductVariantId, reserved.Quantity, orderId, ct);
                 }
 
                 throw new Exception($"Không thể hoàn tất Checkout do lỗi cổng thanh toán: {ex.Message}", ex);
@@ -266,21 +264,6 @@ public class CheckoutCommandHandler(
             CreatedAt = order.CreatedAt
         }, ct);
 
-        // Nếu là đơn COD đủ kho (tự động Confirmed) -> Publish thêm OrderStatusUpdatedEvent để gửi email xác nhận đã duyệt
-        if (initialStatus == OrderStatus.Confirmed)
-        {
-            await publishEndpoint.Publish(new OrderStatusUpdatedEvent
-            {
-                OrderId = orderId,
-                CustomerId = request.UserId,
-                CustomerName = customerName,
-                CustomerEmail = customerEmail,
-                OldStatus = PickleHub.Common.Enums.OrderStatus.Pending,
-                NewStatus = PickleHub.Common.Enums.OrderStatus.Confirmed,
-                UpdatedAt = DateTime.UtcNow
-            }, ct);
-        }
-
         return new CheckoutResponse(
             order.Id,
             order.Subtotal,
@@ -291,7 +274,8 @@ public class CheckoutCommandHandler(
             order.Status.ToString(),
             order.PaymentMethod,
             order.PaymentStatus.ToString(),
-            paymentUrl
+            paymentUrl,
+            qrCode
         );
     }
 }

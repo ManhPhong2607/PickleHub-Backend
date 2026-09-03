@@ -8,11 +8,12 @@ public class AdminReplyReviewCommandValidator : AbstractValidator<AdminReplyRevi
     {
         RuleFor(x => x.ReviewId)
             .NotEmpty()
-            .WithMessage("ID b�i d�nh gi� kh�ng du?c d? r?ng.");
+            .WithMessage("ID bài đánh giá không được để rỗng.");
+        
         RuleFor(x => x.ReplyContent)
             .NotEmpty()
-            .WithMessage("N?i dung ph?n h?i kh�ng du?c d? r?ng.")
-            .MaximumLength(1000)
-            .WithMessage("N?i dung ph?n h?i t?i da 1000 k� t?.");
+            .WithMessage("Nội dung phản hồi không được để trống.")
+            .MaximumLength(2000)
+            .WithMessage("Nội dung phản hồi không được vượt quá 2000 ký tự.");
     }
 }

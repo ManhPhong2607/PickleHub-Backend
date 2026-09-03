@@ -1,4 +1,4 @@
-﻿namespace PickleHub.Inventory.Application.Features.DTOs
+namespace PickleHub.Inventory.Application.Features.DTOs
 {
     public class InventoryItemDto
     {
@@ -45,5 +45,4 @@
             RequiredQuantity = requiredQuantity;
         }
     }
-
 }

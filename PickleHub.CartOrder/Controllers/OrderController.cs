@@ -158,12 +158,51 @@ public class OrderController(ISender mediator, IConfiguration config) : Controll
         return Ok(result);
     }
 
+    // GET /orders/{orderId}/verify -> Endpoint cho Review Service gọi kiểm tra xem đơn hàng đã hoàn tất/thanh toán và chứa sản phẩm
+    [HttpGet("orders/{orderId:guid}/verify")]
+    [AllowAnonymous]
+    public async Task<IActionResult> VerifyOrderForReview(
+        Guid orderId,
+        [FromQuery] Guid userId,
+        [FromQuery] Guid productId,
+        CancellationToken ct)
+    {
+        var result = await mediator.Send(new PickleHub.CartOrder.Application.Features.Orders.VerifyOrder.VerifyOrderQuery(orderId, userId, productId), ct);
+        return Ok(result);
+    }
+
     // GET /admin/orders/dashboard/summary -> Thống kê Dashboard cho Admin
     [HttpGet("admin/orders/dashboard/summary")]
     [Authorize(Roles = "Admin")]
     public async Task<ActionResult<OrderDashboardSummaryDto>> GetDashboardSummary(CancellationToken ct)
     {
         var result = await mediator.Send(new GetDashboardSummaryQuery(), ct);
+        return Ok(result);
+    }
+
+    // GET /admin/orders/dashboard/revenue-analytics -> Biểu đồ Doanh thu theo thời gian
+    [HttpGet("admin/orders/dashboard/revenue-analytics")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<PickleHub.CartOrder.Application.Features.Orders.GetRevenueAnalytics.RevenueAnalyticsResultDto>> GetRevenueAnalytics(
+        [FromQuery] int? days = 30,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
+        CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new PickleHub.CartOrder.Application.Features.Orders.GetRevenueAnalytics.GetRevenueAnalyticsQuery(days, startDate, endDate), ct);
+        return Ok(result);
+    }
+
+    // GET /admin/orders/dashboard/status-distribution -> Biểu đồ Đơn hàng theo trạng thái
+    [HttpGet("admin/orders/dashboard/status-distribution")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<PickleHub.CartOrder.Application.Features.Orders.GetOrderStatusDistribution.OrderStatusDistributionResultDto>> GetOrderStatusDistribution(
+        [FromQuery] int? days = 30,
+        [FromQuery] DateTime? startDate = null,
+        [FromQuery] DateTime? endDate = null,
+        CancellationToken ct = default)
+    {
+        var result = await mediator.Send(new PickleHub.CartOrder.Application.Features.Orders.GetOrderStatusDistribution.GetOrderStatusDistributionQuery(days, startDate, endDate), ct);
         return Ok(result);
     }
 

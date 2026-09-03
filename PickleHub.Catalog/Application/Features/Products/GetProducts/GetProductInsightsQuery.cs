@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using PickleHub.Catalog.Application.Features.Products.DTOs;
 using PickleHub.Catalog.Application.Mappings;
 using PickleHub.Catalog.Domain.Repositories;
@@ -43,7 +43,7 @@ namespace PickleHub.Catalog.Application.Features.Products.GetProducts
                     SoldCount = p.SoldCount
                 };
                 var highView = p.ViewCount >= argView;
-                var highSold = p.SoldCount >= argSold;
+                var highSold = p.SoldCount > 0 && p.SoldCount >= argSold;
 
                 if (highView && !highSold)
                 {

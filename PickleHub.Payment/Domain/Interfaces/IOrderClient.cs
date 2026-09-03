@@ -15,7 +15,7 @@ public class OrderDetailsDto
     public Guid Id { get; set; }
 
     [JsonPropertyName("customerId")]
-    public Guid UserId { get; set; } // map ?úng field JSON th?t c?a CartOrder tr? v?
+    public Guid UserId { get; set; } // map ?Ãºng field JSON th?t c?a CartOrder tr? v?
     public decimal TotalAmount { get; set; }
     public string Status { get; set; } = string.Empty;
     public string PaymentStatus { get; set; } = string.Empty;

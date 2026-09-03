@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Http.Features;
 using PickleHub.Blog.Extensions;
+using PickleHub.Blog.Infrastructure.Persistence;
 using PickleHub.Common.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,4 +47,8 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Auto-migrate & Seed Blog Data
+await app.MigrateAndSeedBlogAsync();
+
 app.Run();

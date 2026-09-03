@@ -61,6 +61,7 @@ public class InventoryDbContext : DbContext, IUnitOfWork
         {
             e.ToTable("inventory_item");
             e.HasKey(i => i.Id);
+            e.Property(i => i.Id).HasColumnName("id");
             e.Property(i => i.ProductVariantId).IsRequired()
                 .HasColumnName("product_variant_id");
             e.HasIndex(i => i.ProductVariantId).IsUnique();
@@ -68,7 +69,7 @@ public class InventoryDbContext : DbContext, IUnitOfWork
                 .HasColumnName("product_id");
             e.Property(i => i.SkuSnapshot).IsRequired().HasMaxLength(100)
                 .HasColumnName("sku_snapshot");
-            e.Property(i => i.Quantity).HasDefaultValue(0);
+            e.Property(i => i.Quantity).HasColumnName("quantity").HasDefaultValue(0);
             e.Property(i => i.ReservedQuantity).HasDefaultValue(0)
                 .HasColumnName("reserved_quantity");
             e.Property(i => i.LowStockThreshold)
@@ -98,14 +99,16 @@ public class InventoryDbContext : DbContext, IUnitOfWork
         {
             e.ToTable("stock_transaction");
             e.HasKey(t => t.Id);
+            e.Property(t => t.Id).HasColumnName("id");
             e.Property(t => t.InventoryItemId)
                 .HasColumnName("inventory_item_id");
             e.Property(t => t.Type)
+                .HasColumnName("type")
                 .HasConversion<string>()
                 .HasMaxLength(20);
-            e.Property(t => t.Quantity).IsRequired();
+            e.Property(t => t.Quantity).HasColumnName("quantity").IsRequired();
             e.Property(t => t.ReferenceId).HasColumnName("reference_id");
-            e.Property(t => t.Note).HasMaxLength(500);
+            e.Property(t => t.Note).HasColumnName("note").HasMaxLength(500);
             e.Property(t => t.CreatedAt).HasColumnName("created_at");
             e.Property(t => t.UpdatedAt).HasColumnName("updated_at");
             e.HasIndex(t => new { t.InventoryItemId, t.Type, t.ReferenceId })

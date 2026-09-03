@@ -78,6 +78,11 @@ namespace PickleHub.Catalog.Migrations
                     b.Property<Guid?>("ParentId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("PublicId")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("public_id");
+
                     b.Property<string>("Slug")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -87,6 +92,10 @@ namespace PickleHub.Catalog.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
+
+                    b.Property<string>("Url")
+                        .HasColumnType("text")
+                        .HasColumnName("url");
 
                     b.HasKey("Id");
 

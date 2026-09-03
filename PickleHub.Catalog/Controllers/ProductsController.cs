@@ -88,6 +88,14 @@ namespace PickleHub.Catalog.Controllers
             return NoContent();
         }
 
+        [HttpPatch("~/admin/products/bulk-status")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> BulkUpdateStatus([FromBody] PickleHub.Catalog.Application.Features.Products.BulkUpdateProductStatus.BulkUpdateProductStatusCommand command, CancellationToken ct)
+        {
+            var count = await mediator.Send(command, ct);
+            return Ok(new { updatedCount = count });
+        }
+
         [HttpGet("~/admin/products/trending")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetTrending([FromQuery] int days = 7,[FromQuery] int limit =10, CancellationToken ct = default)

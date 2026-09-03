@@ -30,8 +30,21 @@ public class GetMyOrdersQueryHandler(ICartOrderDbContext db)
                 PaymentStatus = o.PaymentStatus.ToString(),
                 TotalAmount = o.TotalAmount,
                 ItemCount = o.Items.Sum(i => i.Quantity),
+                FirstProductId = firstItem?.ProductId,
                 FirstItemName = firstItem?.ProductNameSnapshot ?? string.Empty,
                 FirstItemImage = firstItem?.ImageUrlSnapshot,
+                Items = o.Items.Select(i => new OrderItemDto
+                {
+                    Id = i.Id,
+                    ProductId = i.ProductId,
+                    ProductVariantId = i.ProductVariantId != Guid.Empty ? i.ProductVariantId : i.ProductId,
+                    ProductNameSnapshot = i.ProductNameSnapshot,
+                    VariantAttributesSnapshot = i.VariantAttributesSnapshot,
+                    ImageUrlSnapshot = i.ImageUrlSnapshot,
+                    UnitPrice = i.UnitPrice,
+                    Quantity = i.Quantity,
+                    Subtotal = i.Subtotal
+                }).ToList(),
                 CreatedAt = o.CreatedAt
             };
         }).ToList();

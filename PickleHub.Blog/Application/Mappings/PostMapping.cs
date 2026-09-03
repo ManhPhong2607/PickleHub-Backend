@@ -1,4 +1,4 @@
-﻿using PickleHub.Blog.Application.Features.Posts.DTOs;
+using PickleHub.Blog.Application.Features.Posts.DTOs;
 using PickleHub.Blog.Domain.Entities;
 
 namespace PickleHub.Blog.Application.Mappings
@@ -44,6 +44,7 @@ namespace PickleHub.Blog.Application.Mappings
             Slug = post.Slug.Value,
             Status = post.Status.ToString(),
             CategoryName = post.Category?.Name ?? string.Empty,
+            CoverImageUrl = post.CoverImageUrl,
             PublishedAt = post.PublishedAt,
             CreatedAt = post.CreatedAt,
             ViewCount = post.ViewCount

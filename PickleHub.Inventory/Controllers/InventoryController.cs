@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using PickleHub.Inventory.Application.Features.Inventory.CheckStock;
 using PickleHub.Inventory.Application.Features.Inventory.DeleteInventoryItem;
@@ -29,8 +30,7 @@ namespace PickleHub.Inventory.Controllers
         [HttpGet("variants/{variantId:guid}")]
         public async Task<IActionResult> GetByVariantId(Guid variantId, CancellationToken ct)
         {
-            var result = await mediator.Send(
-                new GetInventoryItemQuery(variantId), ct);
+            var result = await mediator.Send(new GetInventoryItemQuery(variantId), ct);
             return Ok(result);
         }
 
@@ -42,7 +42,7 @@ namespace PickleHub.Inventory.Controllers
             [FromQuery] int requiredQuantity,
             CancellationToken ct)
         {
-            var result = await mediator.Send( new CheckStockQuery(variantId, requiredQuantity), ct);
+            var result = await mediator.Send(new CheckStockQuery(variantId, requiredQuantity), ct);
             return Ok(result);
         }
 
@@ -67,11 +67,10 @@ namespace PickleHub.Inventory.Controllers
             [FromBody] UpdateThresholdRequest body,
             CancellationToken ct)
         {
-            var result = await mediator.Send(new UpdateThresholdCommand(variantId, body.Threshold), ct);
+            var result = await mediator.Send(new UpdateThresholdCommand(variantId, body.Threshold, body.ProductId, body.SkuSnapshot, body.CurrentQuantity), ct);
             return Ok(result);
         }
 
-        // Controllers/InventoryController.cs — thêm tạm
         [HttpDelete("variants/{variantId:guid}")]
         public async Task<IActionResult> Delete(Guid variantId, CancellationToken ct)
         {
@@ -98,16 +97,12 @@ namespace PickleHub.Inventory.Controllers
             return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
-        // File này dùng để IMPORT LẠI (khác export-excel chỉ để xem/báo cáo) -
-        // cột số lượng luôn để trống, tránh nhầm với tồn kho hiện tại.
         [HttpGet("import-template-excel")]
         public async Task<IActionResult> ImportTemplateExcel(CancellationToken ct)
         {
             var bytes = await mediator.Send(new GetImportTemplateExcelQuery(), ct);
             var fileName = $"inventory_import_template_{DateTime.UtcNow:yyyyMMdd_HHmmss}.xlsx";
-            return File(bytes,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                fileName);
+            return File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
         }
 
         [HttpPost("reserve")]
@@ -144,7 +139,7 @@ namespace PickleHub.Inventory.Controllers
             return Ok(result);
         }
 
-        public record UpdateThresholdRequest(int Threshold);
+        public record UpdateThresholdRequest(int Threshold, Guid? ProductId = null, string? SkuSnapshot = null, int? CurrentQuantity = null);
 
         // thêm OrderId bắt buộc (không nullable) — đây là ReferenceId dùng để chống Reserve/Release trùng lặp khi CartOrder timeout & gọi lại (retry từ client).
         public record ReserveStockRequest(Guid VariantId, int Quantity, Guid OrderId);

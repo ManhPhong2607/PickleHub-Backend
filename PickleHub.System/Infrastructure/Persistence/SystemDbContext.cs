@@ -38,9 +38,9 @@ namespace PickleHub.System.Infrastructure.Persistence
                 e.Property(a => a.IsActive).HasDefaultValue(true);
                 e.Property(a => a.StartsAt).HasColumnName("starts_at");
                 e.Property(a => a.EndsAt).HasColumnName("ends_at");
-                e.Property(a => a.ImageUrl).HasColumnName("image_url").HasMaxLength(1000);
+                e.Property(a => a.ImageUrl).HasColumnName("image_url").HasColumnType("text");
                 e.Property(a => a.ImagePublicId).HasColumnName("image_public_id").HasMaxLength(500);
-                e.Property(a => a.CtaLink).HasColumnName("cta_link").HasMaxLength(1000);
+                e.Property(a => a.CtaLink).HasColumnName("cta_link").HasColumnType("text");
                 e.Property(a => a.CreatedAt).HasColumnName("created_at");
                 e.Property(a => a.UpdatedAt).HasColumnName("updated_at");
 

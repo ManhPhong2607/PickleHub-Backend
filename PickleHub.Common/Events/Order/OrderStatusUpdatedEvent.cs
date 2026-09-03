@@ -12,6 +12,7 @@ public record OrderStatusUpdatedEvent
     public string CustomerName { get; init; } = string.Empty;
     public OrderStatus OldStatus { get; init; } 
     public OrderStatus NewStatus { get; init; } 
+    public decimal TotalAmount { get; init; }
     public List<OrderItemPayload> Items { get; init; } = new();
 
     // Chỉ có giá trị khi NewStatus = Shipping

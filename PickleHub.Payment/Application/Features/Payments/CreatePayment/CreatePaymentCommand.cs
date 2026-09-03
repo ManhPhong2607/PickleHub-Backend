@@ -49,7 +49,8 @@ public class CreatePaymentCommandHandler(
             return new CreatePaymentResponse(
                 existingPayment.Id,
                 $"https://pay.payos.vn/web/{existingPayment.OrderCode}",
-                existingPayment.PaymentLinkId
+                existingPayment.PaymentLinkId,
+                null
             );
         }
 
@@ -71,7 +72,7 @@ public class CreatePaymentCommandHandler(
         {
             OrderCode = orderCode,
             Amount = (long)request.Amount,
-            Description = $"Thanh toán đơn hàng #{orderCode}",
+            Description = $"DH{orderCode}",
             CancelUrl = cancelUrl,
             ReturnUrl = returnUrl,
             Items = new List<PaymentLinkItem>()
@@ -97,6 +98,7 @@ public class CreatePaymentCommandHandler(
                 OrderId = request.OrderId,
                 UserId = order.UserId,
                 OrderCode = orderCode,
+                IdempotencyToken = $"PAY_{request.OrderId}_{orderCode}",
                 PaymentLinkId = createPaymentResult.PaymentLinkId,
                 Amount = request.Amount,
                 Method = "PayOS",
@@ -107,11 +109,12 @@ public class CreatePaymentCommandHandler(
             db.Payments.Add(paymentRecord);
             await db.SaveChangesAsync(ct);
 
-            // 7. Trả về kết quả Checkout URL thực từ PayOS
+            // 7. Trả về kết quả Checkout URL & QrCode thực từ PayOS
             return new CreatePaymentResponse(
                 paymentRecord.Id,
                 createPaymentResult.CheckoutUrl,
-                createPaymentResult.PaymentLinkId
+                createPaymentResult.PaymentLinkId,
+                createPaymentResult.QrCode
             );
         }
         catch (Exception ex)

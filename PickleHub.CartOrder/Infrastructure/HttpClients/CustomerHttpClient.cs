@@ -6,18 +6,20 @@ using System.Threading;
 using System.Threading.Tasks;
 using PickleHub.CartOrder.Domain.Interfaces;
 
+using Microsoft.Extensions.Configuration;
+
 namespace PickleHub.CartOrder.Infrastructure.HttpClients;
 
 /// <summary>
-/// Thực hiện cuộc gọi HTTP vật lý đến Customer Service sử dụng header bảo mật nội bộ X-Internal-Service.
+/// Thực hiện cuộc gọi HTTP vật lý đến Customer Service sử dụng header bảo mật nội bộ X-Internal-Key.
 /// </summary>
 public class CustomerHttpClient(HttpClient httpClient, IConfiguration config) : ICustomerClient
 {
-    private HttpRequestMessage BuildInternalRequest(Guid productId)
+    private HttpRequestMessage BuildInternalRequest(string path)
     {
         var internalToken = config["Security:InternalApiKey"]
                 ?? throw new InvalidOperationException("Thiếu cấu hình Security:InternalApiKey");
-        var request = new HttpRequestMessage(HttpMethod.Get, $"internal/products/{productId}");
+        var request = new HttpRequestMessage(HttpMethod.Get, path);
         request.Headers.Add("X-Internal-Key", internalToken);
         return request;
     }
@@ -25,10 +27,7 @@ public class CustomerHttpClient(HttpClient httpClient, IConfiguration config) : 
     {
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, $"customers/{customerId}");
-            request.Headers.Add("X-Internal-Service", "true");
-
-            var response = await httpClient.SendAsync(request, ct);
+            var response = await httpClient.SendAsync(BuildInternalRequest($"internal/customers/{customerId}"), ct);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {
@@ -49,10 +48,7 @@ public class CustomerHttpClient(HttpClient httpClient, IConfiguration config) : 
     {
         try
         {
-            var request = new HttpRequestMessage(HttpMethod.Get, $"customers/addresses/{addressId}");
-            request.Headers.Add("X-Internal-Service", "true");
-
-            var response = await httpClient.SendAsync(request, ct);
+            var response = await httpClient.SendAsync(BuildInternalRequest($"internal/customers/addresses/{addressId}"), ct);
 
             if (response.StatusCode == HttpStatusCode.NotFound)
             {

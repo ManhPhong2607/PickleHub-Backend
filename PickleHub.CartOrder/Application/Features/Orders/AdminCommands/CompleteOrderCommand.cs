@@ -18,7 +18,9 @@ public class CompleteOrderCommandHandler(
 {
     public async Task<bool> Handle(CompleteOrderCommand request, CancellationToken ct)
     {
-        var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == request.OrderId, ct);
+        var order = await db.Orders
+            .Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.Id == request.OrderId, ct);
         if (order is null)
         {
             throw new KeyNotFoundException("Không tìm thấy đơn hàng yêu cầu.");
@@ -46,6 +48,16 @@ public class CompleteOrderCommandHandler(
             CustomerEmail = customer?.Email ?? string.Empty,
             OldStatus = Enum.Parse<OrderStatus>(oldStatus.ToString(), true),
             NewStatus = Enum.Parse<OrderStatus>(order.Status.ToString(), true),
+            TotalAmount = order.TotalAmount,
+            Items = (order.Items ?? new List<Domain.Entities.OrderItem>()).Select(i => new OrderItemPayload
+            {
+                ProductId = i.ProductId,
+                ProductVariantId = i.ProductVariantId,
+                ProductNameSnapshot = i.ProductNameSnapshot,
+                VariantAttributesSnapshot = i.VariantAttributesSnapshot,
+                Quantity = i.Quantity,
+                UnitPrice = i.UnitPrice
+            }).ToList(),
             UpdatedAt = DateTime.UtcNow
         }, ct);
 

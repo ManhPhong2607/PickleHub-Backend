@@ -9,8 +9,8 @@ namespace PickleHub.Inventory.Domain.Entities
         public Guid ProductVariantId { get; private set; }
         public Guid ProductId { get; private set; }
         public string SkuSnapshot { get; private set; } = string.Empty;
-        public int Quantity { get; private set; } = 0;
-        public int ReservedQuantity { get; private set; } = 0;
+        public int Quantity { get; private set; } = 0;               // Physical Stock
+        public int ReservedQuantity { get; private set; } = 0;       // Reserved for pending orders
         public int LowStockThreshold { get; private set; } = 5;
         public uint Version { get; private set; }
 
@@ -29,21 +29,32 @@ namespace PickleHub.Inventory.Domain.Entities
             Guid productVariantId,
             Guid productId,
             string skuSnapshot,
-            int lowStockThreshold = 5 //lay tu appsettings
+            int lowStockThreshold = 5,
+            int initialQuantity = 0
         )
         {
-            return new InventoryItem
+            var item = new InventoryItem
             {
                 ProductVariantId = productVariantId,
                 ProductId = productId,
                 SkuSnapshot = skuSnapshot.Trim(),
                 LowStockThreshold = lowStockThreshold
             };
+
+            if (initialQuantity > 0)
+            {
+                item.Import(initialQuantity, note: "Khởi tạo tồn kho khả dụng");
+            }
+
+            return item;
         }
         public StockTransaction Import(int quantity, Guid? referenceId = null, string? note = null)
         {
             if (quantity <= 0)
                 throw new DomainException("Số lượng nhập kho phải lớn hơn 0.");
+
+            int pBefore = Quantity;
+            int rBefore = ReservedQuantity;
 
             Quantity += quantity;
             Version++;
@@ -109,8 +120,9 @@ namespace PickleHub.Inventory.Domain.Entities
             Version++;
             SetUpdated();
 
-            var transaction = StockTransaction.Create( Id, TransactionType.Deduct, quantity, orderId);
+            var transaction = StockTransaction.Create(Id, TransactionType.Deduct, quantity, orderId);
             _transactions.Add(transaction);
+
             return transaction;
         }
 
@@ -139,4 +151,3 @@ namespace PickleHub.Inventory.Domain.Entities
         }
     }
 }
-

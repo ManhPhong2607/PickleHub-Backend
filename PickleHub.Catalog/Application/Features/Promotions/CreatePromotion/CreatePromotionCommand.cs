@@ -60,7 +60,7 @@ namespace PickleHub.Catalog.Application.Features.Promotions.CreatePromotion
             return new AssignProductsResultDto
             {
                 Promotion = dto,
-                SuccessCount = (request.Items?.Count ?? 0) - conflictingIds.Count,
+                SuccessCount = request.Items.Count - conflictingIds.Count,
                 ConflictingProductIds = conflictingIds.ToList()
             };
         }

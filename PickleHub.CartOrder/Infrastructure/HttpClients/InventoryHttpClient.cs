@@ -41,13 +41,13 @@ public class InventoryHttpClient(HttpClient httpClient, IConfiguration config) :
         }
     }
 
-    public async Task<bool> ReserveStockAsync(Guid variantId, int quantity, CancellationToken ct = default)
+    public async Task<bool> ReserveStockAsync(Guid variantId, int quantity, Guid orderId, CancellationToken ct = default)
     {
         try
         {
             var request = new HttpRequestMessage(HttpMethod.Post, "inventory/reserve")
             {
-                Content = JsonContent.Create(new { VariantId = variantId, Quantity = quantity })
+                Content = JsonContent.Create(new { VariantId = variantId, Quantity = quantity, OrderId = orderId })
             };
             request.Headers.Add("X-Internal-Key", GetInternalToken());
 
@@ -64,19 +64,19 @@ public class InventoryHttpClient(HttpClient httpClient, IConfiguration config) :
             var result = await response.Content.ReadFromJsonAsync<InventoryActionResponse>(cancellationToken: ct);
             return result is not null && result.Success;
         }
-        catch (Exception ex)
+        catch
         {
-            throw new HttpRequestException($"Không thể kết nối đến Inventory Service để giữ chỗ tồn kho (Reserve): {ex.Message}", ex);
+            return false;
         }
     }
 
-    public async Task<bool> ReleaseStockAsync(Guid variantId, int quantity, CancellationToken ct = default)
+    public async Task<bool> ReleaseStockAsync(Guid variantId, int quantity, Guid orderId, CancellationToken ct = default)
     {
         try
         {
             var request = new HttpRequestMessage(HttpMethod.Post, "inventory/release")
             {
-                Content = JsonContent.Create(new { VariantId = variantId, Quantity = quantity })
+                Content = JsonContent.Create(new { VariantId = variantId, Quantity = quantity, OrderId = orderId })
             };
             request.Headers.Add("X-Internal-Key", GetInternalToken());
 

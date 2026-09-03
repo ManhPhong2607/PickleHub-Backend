@@ -5,7 +5,7 @@ using PickleHub.Common.Interfaces;
 
 namespace PickleHub.Catalog.Application.Features.Promotions.RemoveProductFromPromotion
 {
-    public record RemoveProductFromPromotionCommand(Guid PromotionId, List<Guid> ProductIds) : IRequest;
+   public record RemoveProductFromPromotionCommand(Guid PromotionId, List<Guid> ProductIds) : IRequest;
 
     public class RemoveProductFromPromotionHandler : IRequestHandler<RemoveProductFromPromotionCommand>
     {
@@ -28,7 +28,7 @@ namespace PickleHub.Catalog.Application.Features.Promotions.RemoveProductFromPro
                 promotion.RemoveItem(productId);
             }
 
-          //  _promotionRepository.Update(promotion);
+        //  _promotionRepository.Update(promotion);
             await _unitOfWork.SaveChangesAsync(ct);
         }
     }

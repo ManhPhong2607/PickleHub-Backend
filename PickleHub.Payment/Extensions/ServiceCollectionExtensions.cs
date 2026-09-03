@@ -52,12 +52,19 @@ public static class ServiceCollectionExtensions
     {
         services.AddMassTransit(x =>
         {
-            x.UsingRabbitMq((_, cfg) =>
+            x.AddConsumer<Infrastructure.Consumers.OrderCancelledConsumer>();
+
+            x.UsingRabbitMq((context, cfg) =>
             {
                 cfg.Host(configuration["RabbitMQ:Host"], "/", h =>
                 {
                     h.Username(configuration["RabbitMQ:Username"]!);
                     h.Password(configuration["RabbitMQ:Password"]!);
+                });
+
+                cfg.ReceiveEndpoint("payment-order-cancelled", e =>
+                {
+                    e.ConfigureConsumer<Infrastructure.Consumers.OrderCancelledConsumer>(context);
                 });
             });
         });

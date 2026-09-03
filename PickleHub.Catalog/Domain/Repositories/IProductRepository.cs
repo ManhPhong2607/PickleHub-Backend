@@ -10,7 +10,6 @@ namespace PickleHub.Catalog.Domain.Repositories
         Task<Product?> GetByIdWithDetailAsync(Guid id, CancellationToken ct =default);
         Task<Product?> GetBySlugAsync(string slug, CancellationToken ct =default);
         Task<bool> ExistsBySlugAsync(string slug, Guid? excludeId = null, CancellationToken ct =default);
-        Task<bool> ExistsBySkuAsync(string sku, Guid? excludeVariantId = null, CancellationToken ct = default);
         Task<List<Product>> GetRelatedAsync(Guid productId, Guid categoryId, int limit, CancellationToken ct = default);
         Task<List<Product>> GetByIdsAsync(List<Guid> ids, CancellationToken ct = default);
         Task<List<Product>> GetAllActiveWithStatsAsync(CancellationToken ct = default);
@@ -43,5 +42,6 @@ namespace PickleHub.Catalog.Domain.Repositories
 
         void Add(Product product);
         void Update(Product product);
+        void Remove(Product product);
     }
 }

@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using PickleHub.Catalog.Application.Features.Categories.DTOs;
 using PickleHub.Catalog.Domain.Repositories;
 
@@ -17,17 +17,21 @@ namespace PickleHub.Catalog.Application.Features.Categories.GetCategory
         {
             var categories = await _categoryRepository.GetAllAsync(ct);
 
-            var dtos = categories.Select(c=> new CategoryTreeDto
+            var dtos = categories.Select(c => new CategoryTreeDto
             {
                 Id = c.Id,
                 Name = c.Name,
                 Slug = c.Slug.Value,
                 ParentId = c.ParentId,
+                Url = c.Url,
+                PublicId = c.PublicId,
                 AttributeSchemaJson = c.AttributeSchemaJson,
+                CreatedAt = c.CreatedAt,
+                UpdatedAt = c.UpdatedAt,
                 Children = new List<CategoryTreeDto>()
             }).ToList();
 
-            if(request.Flat)
+            if (request.Flat)
             {
                 return dtos;
             }

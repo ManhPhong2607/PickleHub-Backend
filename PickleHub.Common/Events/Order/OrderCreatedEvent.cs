@@ -23,6 +23,7 @@ public record OrderCreatedEvent
 
 public record OrderItemPayload
 {
+    public Guid ProductId { get; init; }
     public Guid ProductVariantId { get; init; }
     public string ProductNameSnapshot { get; init; } = string.Empty;
     public string VariantAttributesSnapshot { get; init; } = string.Empty; // "Màu: Xanh, Size: 42"

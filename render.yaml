@@ -1,0 +1,320 @@
+# ==============================================================================
+# RENDER INFRASTRUCTURE AS CODE (BLUEPRINT) FOR PICKLEHUB MICROSERVICES
+# ==============================================================================
+databases:
+  - name: picklehub-postgres
+    databaseName: picklehub_main
+    user: postgres
+    plan: free
+    ipAllowList: [] # Chỉ cho phép internal Render services truy cập
+
+services:
+  # ────────────────────────────────────────────────────────────────────────────
+  # 1. PUBLIC WEB SERVICE: YARP API GATEWAY (PORT 8080)
+  # ────────────────────────────────────────────────────────────────────────────
+  - type: web
+    name: picklehub-gateway
+    env: docker
+    dockerfilePath: PickleHub.Gateway/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Docker
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: Jwt__SecretKey
+        generateValue: true
+      - key: Jwt__Issuer
+        value: picklehub
+      - key: Cors__AllowedOrigins
+        value: "*" # Thay bằng domain Vercel của bạn sau khi deploy (VD: https://picklehub.vercel.app)
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 2. PRIVATE SERVICES (Chỉ gọi nội bộ qua Gateway, không public ra Internet)
+  # ────────────────────────────────────────────────────────────────────────────
+  - type: pserv
+    name: authen-service
+    env: docker
+    dockerfilePath: PickleHub.Authen/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__AuthenDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+
+  - type: pserv
+    name: catalog-service
+    env: docker
+    dockerfilePath: PickleHub.Catalog/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__CatalogDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+      - key: Cloudinary__CloudName
+        sync: false
+      - key: Cloudinary__ApiKey
+        sync: false
+      - key: Cloudinary__ApiSecret
+        sync: false
+
+  - type: pserv
+    name: customer-service
+    env: docker
+    dockerfilePath: PickleHub.Customers/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__CustomerDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+
+  - type: pserv
+    name: system-service
+    env: docker
+    dockerfilePath: PickleHub.System/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__SystemDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+
+  - type: pserv
+    name: inventory-service
+    env: docker
+    dockerfilePath: PickleHub.Inventory/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__InventoryDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+      - key: Security__InternalApiKey
+        generateValue: true
+
+  - type: pserv
+    name: auditlog-service
+    env: docker
+    dockerfilePath: PickleHub.AuditLog/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__AuditLogDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+
+  - type: pserv
+    name: cartorder-service
+    env: docker
+    dockerfilePath: PickleHub.CartOrder/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__CartOrderDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+      - key: Security__InternalApiKey
+        fromService:
+          type: pserv
+          name: inventory-service
+          envVarKey: Security__InternalApiKey
+      - key: Services__InventoryServiceUrl
+        value: http://inventory-service:8080
+
+  - type: pserv
+    name: payment-service
+    env: docker
+    dockerfilePath: PickleHub.Payment/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__PaymentDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+
+  - type: pserv
+    name: notification-service
+    env: docker
+    dockerfilePath: PickleHub.Notification/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__NotificationDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+
+  - type: pserv
+    name: review-service
+    env: docker
+    dockerfilePath: PickleHub.Review/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__ReviewDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+
+  - type: pserv
+    name: blog-service
+    env: docker
+    dockerfilePath: PickleHub.Blog/Dockerfile
+    dockerContext: .
+    plan: free
+    region: singapore
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_HTTP_PORTS
+        value: 8080
+      - key: ConnectionStrings__BlogDb
+        fromDatabase:
+          name: picklehub-postgres
+          property: connectionString
+      - key: Jwt__SecretKey
+        fromService:
+          type: web
+          name: picklehub-gateway
+          envVarKey: Jwt__SecretKey
+      - key: Jwt__Issuer
+        value: picklehub
+      - key: Cloudinary__CloudName
+        sync: false
+      - key: Cloudinary__ApiKey
+        sync: false
+      - key: Cloudinary__ApiSecret
+        sync: false

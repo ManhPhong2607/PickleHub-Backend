@@ -6,6 +6,7 @@ namespace PickleHub.Payment.Application.Common.Interfaces;
 public interface IPaymentDbContext
 {
     DbSet<Payments> Payments { get; }
+    DbSet<RefundRequest> RefundRequests { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

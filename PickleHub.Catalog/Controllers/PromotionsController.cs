@@ -24,6 +24,15 @@ namespace PickleHub.Catalog.Controllers
             return Ok(result);
         }
 
+        [HttpGet("/promotions/active")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetActive(CancellationToken ct)
+        {
+            var result = await mediator.Send(new GetPromotionsQuery(Page: 1, PageSize: 50), ct);
+            var active = result.Items.Where(p => p.IsActive && p.IsCurrentlyRunning).ToList();
+            return Ok(active);
+        }
+
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> GetById(Guid id, CancellationToken ct)
         {

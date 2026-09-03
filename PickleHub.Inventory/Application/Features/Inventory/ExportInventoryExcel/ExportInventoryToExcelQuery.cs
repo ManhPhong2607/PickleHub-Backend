@@ -27,7 +27,7 @@ namespace PickleHub.Inventory.Application.Features.Inventory.ExportInventoryExce
             var headers = new[]
             {
                 "ProductVariantId", "ProductId", "SKU", "Số lượng hiện tại",
-                "Ngưỡng cảnh báo", "Trạng thái", "Cập nhật lần cuối"
+                "Ngưỡng cảnh báo", "Trạng thái"
             };
             for (int col = 0; col < headers.Length; col++)
                 sheet.Cell(1, col + 1).Value = headers[col];

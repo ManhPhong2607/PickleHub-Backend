@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 
 namespace PickleHub.System.Application.Features.Announcements.UpdateAnnouncement
 {

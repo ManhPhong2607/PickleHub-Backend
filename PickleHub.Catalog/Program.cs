@@ -4,16 +4,15 @@ using PickleHub.Common.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Giới hạn tổng dung lượng request - phải đủ lớn để chứa bulk-upload tối đa
-// (8 file x 100MB/file theo AddProductImageValidator = tối đa 800MB lý thuyết).
+// Tăng giới hạn upload file lên 100MB
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = 850L * 1024 * 1024; // 850 MB
+    options.Limits.MaxRequestBodySize = 104_857_600; // 100 MB
 });
 
 builder.Services.Configure<FormOptions>(options =>
 {
-    options.MultipartBodyLengthLimit = 850L * 1024 * 1024; // 850 MB
+    options.MultipartBodyLengthLimit = 104_857_600; // 100 MB
 });
 
 builder.Services

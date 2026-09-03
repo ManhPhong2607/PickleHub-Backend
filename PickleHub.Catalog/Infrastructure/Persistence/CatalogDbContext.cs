@@ -1,4 +1,4 @@
-﻿using PickleHub.Common.Interfaces;
+using PickleHub.Common.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using PickleHub.Catalog.Domain;
@@ -15,8 +15,8 @@ public class CatalogDbContext : DbContext, IUnitOfWork
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<Brand> Brands => Set<Brand>();
     public DbSet<Product> Products => Set<Product>();
-    //public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
-    //public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<ProductViewDaily> ProductViewDailies => Set<ProductViewDaily>();
     public DbSet<Promotion> Promotions => Set<Promotion>();
     public DbSet<PromotionProduct> PromotionProducts => Set<PromotionProduct>();
@@ -44,6 +44,8 @@ public class CatalogDbContext : DbContext, IUnitOfWork
                 .HasMaxLength(300)
                 .HasColumnName("slug");
             e.HasIndex(c => c.Slug).IsUnique();
+            e.Property(c => c.PublicId).HasColumnName("public_id").HasMaxLength(500);
+            e.Property(c => c.Url).HasColumnName("url");
             e.Property(c => c.AttributeSchemaJson)
                .HasColumnName("attribute_schema_json")
                .HasColumnType("jsonb")

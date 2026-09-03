@@ -1,4 +1,4 @@
-﻿using PickleHub.Inventory.Application.Common.Interfaces;
+using PickleHub.Inventory.Application.Common.Interfaces;
 
 namespace PickleHub.Inventory.Infrastructure.HttpClients
 {

@@ -1,0 +1,360 @@
+version: '3.8'
+
+services:
+  # ────────────────────────────────────────────────────────────────────────────
+  # 1. INFRASTRUCTURE: DATABASE, CACHE, MESSAGE BROKER
+  # ────────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: picklehub-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-PickleHubSecurePass123!}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - picklehub-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: picklehub-redis
+    restart: always
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - picklehub-network
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: picklehub-rabbitmq
+    restart: always
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-guest}
+    ports:
+      - "${RABBITMQ_PORT:-5672}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    networks:
+      - picklehub-network
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 2. BACKEND MICROSERVICES (.NET 8)
+  # ────────────────────────────────────────────────────────────────────────────
+  authen-service:
+    build:
+      context: .
+      dockerfile: PickleHub.Authen/Dockerfile
+    container_name: picklehub-authen
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__AuthenDb=${AUTHEN_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_authen;Username=postgres;Password=PickleHubSecurePass123!}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+      - SeedAdmin__Email=${SEED_ADMIN_EMAIL:-admin@gmail.com}
+      - SeedAdmin__Password=${SEED_ADMIN_PASSWORD:-AdminPassword123!}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  catalog-service:
+    build:
+      context: .
+      dockerfile: PickleHub.Catalog/Dockerfile
+    container_name: picklehub-catalog
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__CatalogDb=${CATALOG_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_catalog;Username=postgres;Password=PickleHubSecurePass123!}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+      - Cloudinary__CloudName=${CLOUDINARY_CLOUD_NAME}
+      - Cloudinary__ApiKey=${CLOUDINARY_API_KEY}
+      - Cloudinary__ApiSecret=${CLOUDINARY_API_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  customer-service:
+    build:
+      context: .
+      dockerfile: PickleHub.Customers/Dockerfile
+    container_name: picklehub-customer
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__CustomerDb=${CUSTOMER_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_customer;Username=postgres;Password=PickleHubSecurePass123!;Include Error Detail=true}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+      - Cloudinary__CloudName=${CLOUDINARY_CLOUD_NAME}
+      - Cloudinary__ApiKey=${CLOUDINARY_API_KEY}
+      - Cloudinary__ApiSecret=${CLOUDINARY_API_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  system-service:
+    build:
+      context: .
+      dockerfile: PickleHub.System/Dockerfile
+    container_name: picklehub-system
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__SystemDb=${SYSTEM_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_system;Username=postgres;Password=PickleHubSecurePass123!}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: PickleHub.Inventory/Dockerfile
+    container_name: picklehub-inventory
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__InventoryDb=${INVENTORY_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_inventory;Username=postgres;Password=PickleHubSecurePass123!}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+      - Security__InternalApiKey=${INTERNAL_API_KEY:-PickleHub_Internal_Secret_Service_Communication_Key_2026}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  auditlog-service:
+    build:
+      context: .
+      dockerfile: PickleHub.AuditLog/Dockerfile
+    container_name: picklehub-auditlog
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__AuditLogDb=${AUDITLOG_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_auditlog;Username=postgres;Password=PickleHubSecurePass123!}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  cartorder-service:
+    build:
+      context: .
+      dockerfile: PickleHub.CartOrder/Dockerfile
+    container_name: picklehub-cartorder
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__CartOrderDb=${CARTORDER_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_cartorder;Username=postgres;Password=PickleHubSecurePass123!}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+      - Security__InternalApiKey=${INTERNAL_API_KEY:-PickleHub_Internal_Secret_Service_Communication_Key_2026}
+      - Services__InventoryServiceUrl=http://inventory-service:8080
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: PickleHub.Payment/Dockerfile
+    container_name: picklehub-payment
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__PaymentDb=${PAYMENT_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_payment;Username=postgres;Password=PickleHubSecurePass123!}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: PickleHub.Notification/Dockerfile
+    container_name: picklehub-notification
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__NotificationDb=${NOTIFICATION_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_notification;Username=postgres;Password=PickleHubSecurePass123!}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  review-service:
+    build:
+      context: .
+      dockerfile: PickleHub.Review/Dockerfile
+    container_name: picklehub-review
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__ReviewDb=${REVIEW_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_review;Username=postgres;Password=PickleHubSecurePass123!}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  blog-service:
+    build:
+      context: .
+      dockerfile: PickleHub.Blog/Dockerfile
+    container_name: picklehub-blog
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__BlogDb=${BLOG_DB_CONN:-Host=postgres;Port=5432;Database=picklehub_blog;Username=postgres;Password=PickleHubSecurePass123!}
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+      - RabbitMQ__Host=rabbitmq
+      - RabbitMQ__Username=${RABBITMQ_USER:-guest}
+      - RabbitMQ__Password=${RABBITMQ_PASS:-guest}
+      - Cloudinary__CloudName=${CLOUDINARY_CLOUD_NAME}
+      - Cloudinary__ApiKey=${CLOUDINARY_API_KEY}
+      - Cloudinary__ApiSecret=${CLOUDINARY_API_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - picklehub-network
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # 3. YARP API GATEWAY (PORT 5105)
+  # ────────────────────────────────────────────────────────────────────────────
+  gateway:
+    build:
+      context: .
+      dockerfile: PickleHub.Gateway/Dockerfile
+    container_name: picklehub-gateway
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Docker
+      - Jwt__SecretKey=${JWT_SECRET_KEY:-PickleHub_Super_Secret_Key_Production_2026_Minimum_32_Characters!}
+      - Jwt__Issuer=${JWT_ISSUER:-picklehub}
+    ports:
+      - "${GATEWAY_PORT:-5105}:8080"
+    depends_on:
+      - authen-service
+      - catalog-service
+      - customer-service
+      - system-service
+      - inventory-service
+      - auditlog-service
+      - cartorder-service
+      - payment-service
+      - notification-service
+      - review-service
+      - blog-service
+    networks:
+      - picklehub-network
+
+  # ────────────────────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------------------
+# NETWORKS & VOLUMES
+# ----------------------------------------------------------------------------
+networks:
+  picklehub-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local

@@ -1,11 +1,9 @@
-using CloudinaryDotNet.Actions;
 using MassTransit;
-using MassTransit.DependencyInjection;
 using MediatR;
 using PickleHub.Catalog.Application.Features.Products.DTOs;
 using PickleHub.Catalog.Domain.Entities;
+using PickleHub.Catalog.Domain.Enums;
 using PickleHub.Catalog.Domain.Repositories;
-using PickleHub.Catalog.Infrastructure.Persistence.Repositories;
 using PickleHub.Common.Events.Catalog;
 using PickleHub.Common.Exceptions;
 using PickleHub.Common.Interfaces;
@@ -18,7 +16,12 @@ namespace PickleHub.Catalog.Application.Features.Products.CreateProduct
         string Description,
         Guid CategoryId,
         Guid BrandId,
-        string? SpecsJson
+        decimal? Price = null,
+        decimal? BasePrice = null,
+        string? Sku = null,
+        string? AttributesJson = null,
+        string? SpecsJson = null,
+        ProductStatus? Status = null
     ) : IRequest<ProductDetailDto>;
 
     public class CreateProductHandler : IRequestHandler<CreateProductCommand, ProductDetailDto>
@@ -45,14 +48,20 @@ namespace PickleHub.Catalog.Application.Features.Products.CreateProduct
             _publishEndpoint = publishEndpoint;
             _currentUser = currentUser;
         }
+
         public async Task<ProductDetailDto> Handle(CreateProductCommand request, CancellationToken ct)
         {
-            var slug = await GenerateUniqueSlugAsync(request.Name,null, ct);
+            var slug = await GenerateUniqueSlugAsync(request.Name, null, ct);
             var category = await _categoryRepository.GetByIdAsync(request.CategoryId, ct)
                 ?? throw new NotFoundException("Danh mục sản phẩm không tồn tại.");
 
             var brand = await _brandRepository.GetByIdAsync(request.BrandId, ct)
                 ?? throw new NotFoundException("Thương hiệu không tồn tại.");
+
+            var initialPrice = request.Price ?? request.BasePrice ?? 0m;
+            if (initialPrice <= 0)
+                throw new DomainException("Giá bán của sản phẩm/biến thể phải lớn hơn 0.");
+
             var product = Product.Create(
                 request.Name,
                 slug,
@@ -61,6 +70,22 @@ namespace PickleHub.Catalog.Application.Features.Products.CreateProduct
                 request.BrandId,
                 request.SpecsJson ?? "{}"
             );
+
+            if (request.Status.HasValue)
+            {
+                product.SetStatus(request.Status.Value);
+            }
+
+            var initialSku = !string.IsNullOrWhiteSpace(request.Sku)
+                ? request.Sku.Trim()
+                : $"SKU-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+
+            var initialVariant = product.AddVariant(
+                initialSku,
+                !string.IsNullOrWhiteSpace(request.AttributesJson) ? request.AttributesJson : "{}",
+                initialPrice
+            );
+
             _productRepository.Add(product);
             await _unitOfWork.SaveChangesAsync(ct);
 
@@ -81,9 +106,25 @@ namespace PickleHub.Catalog.Application.Features.Products.CreateProduct
                 Name = product.Name,
                 Slug = product.Slug.Value,
                 Description = product.Description,
-                BasePrice = product.BasePrice,
+                BasePrice = initialPrice,
+                MinPrice = initialPrice,
+                MaxPrice = initialPrice,
+                EffectivePrice = initialPrice,
+                EffectiveMinPrice = initialPrice,
+                EffectiveMaxPrice = initialPrice,
                 Status = product.Status.ToString(),
                 SpecsJson = product.SpecsJson,
+                Variants = new List<ProductVariantDto>
+                {
+                    new ProductVariantDto
+                    {
+                        Id = initialVariant.Id,
+                        ProductId = product.Id,
+                        Sku = initialVariant.Sku,
+                        AttributesJson = initialVariant.AttributesJson,
+                        Price = initialVariant.Price
+                    }
+                }
             };
         }
 
@@ -93,12 +134,11 @@ namespace PickleHub.Catalog.Application.Features.Products.CreateProduct
             var candidate = baseSlug;
             var counter = 1;
 
-            while(await _productRepository.ExistsBySlugAsync(candidate.Value, excludeId, ct))
+            while (await _productRepository.ExistsBySlugAsync(candidate.Value, excludeId, ct))
             {
                 candidate = baseSlug.AppendSuffix(counter++);
             }
             return candidate;
         }
-
     }
 }

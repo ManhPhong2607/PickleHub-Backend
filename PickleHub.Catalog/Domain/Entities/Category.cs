@@ -1,6 +1,7 @@
 ﻿using PickleHub.Common.Domain;
 using PickleHub.Common.Exceptions;
 using PickleHub.Common.ValueObjects;
+
 namespace PickleHub.Catalog.Domain.Entities
 {
     public class Category : BaseEntity
@@ -9,6 +10,9 @@ namespace PickleHub.Catalog.Domain.Entities
         public Slug Slug { get; private set; } = null!;
         public Guid? ParentId { get; private set; }
         
+        public string? Url { get; private set; }
+        public string? PublicId { get; private set; }
+
         //fe dùng để render đúng field khi admin tạo variant sản phẩm thuộc category
         public string AttributeSchemaJson { get; private set; } = "[]";
 
@@ -16,7 +20,7 @@ namespace PickleHub.Catalog.Domain.Entities
 
         private Category() { }
 
-        public static Category Create(string name, Slug slug, Guid? parentId = null)
+        public static Category Create(string name, Slug slug, Guid? parentId = null, string? url = null, string? publicId = null)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new DomainException("Tên danh mục không được để trống.");
@@ -25,7 +29,9 @@ namespace PickleHub.Catalog.Domain.Entities
             {
                 Name = name.Trim(),
                 Slug = slug,
-                ParentId = parentId
+                ParentId = parentId,
+                Url = url,
+                PublicId = publicId
             };
         }
 
@@ -39,6 +45,20 @@ namespace PickleHub.Catalog.Domain.Entities
             Name = name;
             Slug = slug;
             ParentId = parentId;
+            SetUpdated();
+        }
+
+        public void SetImage(string url, string publicId)
+        {
+            Url = url;
+            PublicId = publicId;
+            SetUpdated();
+        }
+
+        public void RemoveImage()
+        {
+            Url = null;
+            PublicId = null;
             SetUpdated();
         }
 
