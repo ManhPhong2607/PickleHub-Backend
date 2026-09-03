@@ -19,7 +19,6 @@ COPY PickleHub.Payment/PickleHub.Payment.csproj PickleHub.Payment/
 COPY PickleHub.Notification/PickleHub.Notification.csproj PickleHub.Notification/
 COPY PickleHub.Review/PickleHub.Review.csproj PickleHub.Review/
 COPY PickleHub.Blog/PickleHub.Blog.csproj PickleHub.Blog/
-COPY PickleHub.MockExternalServices/PickleHub.MockExternalServices.csproj PickleHub.MockExternalServices/
 
 # Restore all projects at once
 RUN dotnet restore PickleHub.sln
