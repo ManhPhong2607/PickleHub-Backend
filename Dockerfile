@@ -51,6 +51,10 @@ RUN apk add --no-cache supervisor bash
 # Low memory profile for Render Free 512MB RAM
 ENV DOTNET_gcServer=0
 ENV DOTNET_TieredPGO=0
+ENV DOTNET_GCTrimCommit=1
+ENV DOTNET_GCHeapHardLimit=35000000
+ENV DOTNET_EnableWriteXorExecute=0
+ENV DOTNET_ThreadPool_UnfairSemaphore=1
 
 # Copy all published outputs
 COPY --from=build /app /app
