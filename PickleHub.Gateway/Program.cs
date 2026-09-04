@@ -58,8 +58,11 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>();
-        if (origins != null && origins.Length > 0)
+        var rawOrigins = builder.Configuration["Cors:AllowedOrigins"];
+        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                      ?? rawOrigins?.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        if (origins != null && origins.Length > 0 && !origins.Contains("*"))
         {
             policy.WithOrigins(origins)
                   .AllowAnyHeader()
