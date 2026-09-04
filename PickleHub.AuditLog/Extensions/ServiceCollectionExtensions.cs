@@ -107,11 +107,24 @@ namespace PickleHub.AuditLog.Extensions
 
                 x.UsingRabbitMq((ctx, cfg) =>
                 {
-                    cfg.Host(config["RabbitMQ:Host"], "/", h =>
+                    var host = config["RabbitMQ:Host"] ?? "localhost";
+                    var vhost = config["RabbitMQ:VirtualHost"] ?? "/";
+                    if (ushort.TryParse(config["RabbitMQ:Port"], out var port) && port > 0)
                     {
-                        h.Username(config["RabbitMQ:Username"]);
-                        h.Password(config["RabbitMQ:Password"]);
-                    });
+                        cfg.Host(host, port, vhost, h =>
+                        {
+                            h.Username(config["RabbitMQ:Username"] ?? "guest");
+                            h.Password(config["RabbitMQ:Password"] ?? "guest");
+                        });
+                    }
+                    else
+                    {
+                        cfg.Host(host, vhost, h =>
+                        {
+                            h.Username(config["RabbitMQ:Username"] ?? "guest");
+                            h.Password(config["RabbitMQ:Password"] ?? "guest");
+                        });
+                    }
 
                     cfg.ConfigureEndpoints(ctx);
                 });

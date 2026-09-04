@@ -60,11 +60,24 @@ public static class ServiceCollectionExtensions
 
             x.UsingRabbitMq((ctx, cfg) =>
             {
-                cfg.Host(configuration["RabbitMQ:Host"], "/", h =>
+                var host = configuration["RabbitMQ:Host"] ?? "localhost";
+                var vhost = configuration["RabbitMQ:VirtualHost"] ?? "/";
+                if (ushort.TryParse(configuration["RabbitMQ:Port"], out var port) && port > 0)
                 {
-                    h.Username(configuration["RabbitMQ:Username"]);
-                    h.Password(configuration["RabbitMQ:Password"]);
-                });
+                    cfg.Host(host, port, vhost, h =>
+                    {
+                        h.Username(configuration["RabbitMQ:Username"] ?? "guest");
+                        h.Password(configuration["RabbitMQ:Password"] ?? "guest");
+                    });
+                }
+                else
+                {
+                    cfg.Host(host, vhost, h =>
+                    {
+                        h.Username(configuration["RabbitMQ:Username"] ?? "guest");
+                        h.Password(configuration["RabbitMQ:Password"] ?? "guest");
+                    });
+                }
 
                 cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
                 cfg.UseInMemoryOutbox();
