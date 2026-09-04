@@ -6,12 +6,10 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-var jwtSecret = builder.Configuration["Jwt:SecretKey"];
-if (string.IsNullOrWhiteSpace(jwtSecret))
-{
-    jwtSecret = "8PFVpQHemzQ2RDJpDcSM5BIlTIhoM6LgvZFudvwRhVY=";
-}
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "PickleHub.Authen";
+var jwtSecret = builder.Configuration["Jwt:SecretKey"] 
+    ?? throw new InvalidOperationException("Jwt:SecretKey is not configured.");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] 
+    ?? throw new InvalidOperationException("Jwt:Issuer is not configured.");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
