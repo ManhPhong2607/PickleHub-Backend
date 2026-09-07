@@ -1,0 +1,140 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using PickleHub.Gateway.Middleware;
+using System.Text;
+
+namespace PickleHub.Gateway;
+
+public static class GatewayApp
+{
+    public static Task<WebApplication> BuildAsync(string[] args, int port = 8080)
+    {
+        var builder = WebApplication.CreateBuilder(args);
+        builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
+        var jwtSecret = builder.Configuration["Jwt:SecretKey"] 
+            ?? throw new InvalidOperationException("Jwt:SecretKey is not configured.");
+        var jwtIssuer = builder.Configuration["Jwt:Issuer"] 
+            ?? throw new InvalidOperationException("Jwt:Issuer is not configured.");
+
+        builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtIssuer,
+                    IssuerSigningKey = new SymmetricSecurityKey(
+                        Encoding.UTF8.GetBytes(jwtSecret))
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnChallenge = context =>
+                    {
+                        context.HandleResponse();
+                        context.Response.StatusCode = 401;
+                        context.Response.ContentType = "application/json";
+                        return context.Response.WriteAsync(
+                            "{\"error\":{\"message\":\"Bạn cần đăng nhập để thực hiện thao tác này.\"}}");
+                    },
+                    OnForbidden = context =>
+                    {
+                        context.Response.StatusCode = 403;
+                        context.Response.ContentType = "application/json";
+                        return context.Response.WriteAsync(
+                            "{\"error\":{\"message\":\"Bạn không có quyền thực hiện thao tác này.\"}}");
+                    }
+                };
+            });
+
+        builder.Services.AddAuthorization(options =>
+        {
+            options.AddPolicy("authenticated", policy =>
+                policy.RequireAuthenticatedUser());
+
+            options.AddPolicy("admin-only", policy =>
+                policy.RequireAuthenticatedUser()
+                      .RequireRole("Admin"));
+        });
+
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                var rawOrigins = builder.Configuration["Cors:AllowedOrigins"];
+                var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                              ?? rawOrigins?.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                if (origins != null && origins.Length > 0 && !origins.Contains("*"))
+                {
+                    policy.WithOrigins(origins)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          .AllowCredentials();
+                }
+                else
+                {
+                    policy.SetIsOriginAllowed(_ => true)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          .AllowCredentials();
+                }
+            });
+        });
+
+        builder.Services.AddReverseProxy()
+            .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
+
+        var app = builder.Build();
+
+        app.Use(async (context, next) =>
+        {
+            var method = context.Request.Method;
+            var path = context.Request.Path;
+            var query = context.Request.QueryString;
+            var origin = context.Request.Headers["Origin"].ToString();
+            Console.WriteLine($"[GATEWAY IN] {method} {path}{query} | Origin: {origin}");
+
+            await next();
+
+            Console.WriteLine($"[GATEWAY OUT] {method} {path} => {context.Response.StatusCode}");
+        });
+
+        app.Use(async (context, next) =>
+        {
+            var origin = context.Request.Headers["Origin"].ToString();
+            if (!string.IsNullOrEmpty(origin))
+            {
+                context.Response.Headers["Access-Control-Allow-Origin"] = origin;
+                context.Response.Headers["Access-Control-Allow-Credentials"] = "true";
+                context.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, PATCH, OPTIONS";
+                context.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With, X-Session-Id, Accept, Origin";
+            }
+
+            if (context.Request.Method == HttpMethods.Options)
+            {
+                context.Response.Headers["Access-Control-Max-Age"] = "86400";
+                context.Response.StatusCode = StatusCodes.Status204NoContent;
+                return;
+            }
+
+            await next();
+        });
+
+        app.UseCors();
+
+        app.MapGet("/health", () => Results.Ok(new { status = "healthy", time = DateTime.UtcNow, version = "1.1.0" }));
+
+        app.UseAuthentication();
+        app.UseMiddleware<JwtForwardingMiddleware>();
+        app.UseAuthorization();
+        app.MapReverseProxy();
+
+        return Task.FromResult(app);
+    }
+}

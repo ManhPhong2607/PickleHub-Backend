@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Exe</OutputType>
+    <StartupObject>PickleHub.App.Program</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PickleHub.Common\PickleHub.Common.csproj" />
+    <ProjectReference Include="..\PickleHub.Gateway\PickleHub.Gateway.csproj" />
+    <ProjectReference Include="..\PickleHub.Authen\PickleHub.Authen.csproj" />
+    <ProjectReference Include="..\PickleHub.Catalog\PickleHub.Catalog.csproj" />
+    <ProjectReference Include="..\PickleHub.Customers\PickleHub.Customers.csproj" />
+    <ProjectReference Include="..\PickleHub.System\PickleHub.System.csproj" />
+    <ProjectReference Include="..\PickleHub.Inventory\PickleHub.Inventory.csproj" />
+    <ProjectReference Include="..\PickleHub.AuditLog\PickleHub.AuditLog.csproj" />
+    <ProjectReference Include="..\PickleHub.CartOrder\PickleHub.CartOrder.csproj" />
+    <ProjectReference Include="..\PickleHub.Payment\PickleHub.Payment.csproj" />
+    <ProjectReference Include="..\PickleHub.Notification\PickleHub.Notification.csproj" />
+    <ProjectReference Include="..\PickleHub.Review\PickleHub.Review.csproj" />
+    <ProjectReference Include="..\PickleHub.Blog\PickleHub.Blog.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>
