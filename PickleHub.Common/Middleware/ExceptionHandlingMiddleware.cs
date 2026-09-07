@@ -28,6 +28,8 @@ namespace PickleHub.Common.Middleware
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unhandled exception: {Message}", ex.Message);
+                Console.WriteLine($"[API ERROR] {context.Request.Method} {context.Request.Path} => {ex.GetType().Name}: {ex.Message}");
+                Console.WriteLine(ex.ToString());
 
                 var (statusCode, message, errors) = ex switch
                 {

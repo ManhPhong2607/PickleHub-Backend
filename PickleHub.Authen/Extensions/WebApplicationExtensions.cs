@@ -13,20 +13,30 @@ namespace PickleHub.Authen.Extensions
         {
             using var scope = app.Services.CreateScope();
 
-            var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
-            var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            try
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AuthenDbContext>();
+                await db.Database.MigrateAsync();
 
-            if (await userRepo.AnyAdminAsync())
-                return;
+                var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+                var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
-            var email = config["SeedAdmin:Email"]!;
-            var password = config["SeedAdmin:Password"]!;
+                if (await userRepo.AnyAdminAsync())
+                    return;
 
-            var admin = User.CreateVerified(email, BCrypt.Net.BCrypt.HashPassword(password), UserRole.Admin);
+                var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+                var email = config["SeedAdmin:Email"] ?? "admin@gmail.com";
+                var password = config["SeedAdmin:Password"] ?? "123456";
 
-            userRepo.Add(admin);
-            await uow.SaveChangesAsync();
+                var admin = User.CreateVerified(email, BCrypt.Net.BCrypt.HashPassword(password), UserRole.Admin);
+
+                userRepo.Add(admin);
+                await uow.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] SeedAdminAsync error: {ex.Message}");
+            }
         }
     }
 }

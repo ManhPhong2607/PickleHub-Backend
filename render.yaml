@@ -34,6 +34,10 @@ envVarGroups:
         value: 8PFVpQHemzQ2RDJpDcSM5BIlTIhoM6LgvZFudvwRhVY=
       - key: Jwt__Issuer
         value: PickleHub.Authen
+      - key: Jwt__AccessTokenMinutes
+        value: "30"
+      - key: Jwt__RefreshTokenDays
+        value: "7"
       - key: Security__InternalApiKey
         value: PickleHubPrivateSecretKey2026
 
