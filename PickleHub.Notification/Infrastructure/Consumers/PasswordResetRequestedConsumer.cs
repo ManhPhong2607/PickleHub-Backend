@@ -1,6 +1,7 @@
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PickleHub.Common.Events.Authen;
 using PickleHub.Notification.Application.Common.Interfaces;
@@ -16,6 +17,7 @@ public class PasswordResetRequestedConsumer(
     IEmailService emailService,
     IRateLimiterService rateLimiter,
     IHubContext<NotificationHub, INotificationClient> hubContext,
+    IConfiguration config,
     ILogger<PasswordResetRequestedConsumer> logger) : IConsumer<PasswordResetRequestedEvent>
 {
     public async Task Consume(ConsumeContext<PasswordResetRequestedEvent> context)
@@ -84,9 +86,16 @@ public class PasswordResetRequestedConsumer(
 
                 var subject = template?.Subject ?? "[PickleHub] Yêu cầu đặt lại mật khẩu tài khoản";
 
-                var resetUrl = !string.IsNullOrEmpty(message.ResetUrl) 
-                    ? message.ResetUrl 
-                    : $"https://picklehub.vn/auth/reset-password?token={message.ResetToken}&email={message.Email}";
+                var frontendBaseUrl = (config["App:FrontendUrl"] ?? config["App:BaseUrl"] ?? "https://picklehub.dev").TrimEnd('/');
+                var resetUrl = message.ResetUrl;
+                if (string.IsNullOrWhiteSpace(resetUrl))
+                {
+                    resetUrl = $"{frontendBaseUrl}/reset-password?token={message.ResetToken}";
+                }
+                else if (!resetUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !resetUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    resetUrl = $"{frontendBaseUrl}/" + resetUrl.TrimStart('/');
+                }
 
                 var customerName = !string.IsNullOrEmpty(message.CustomerName) ? message.CustomerName : message.Email;
 

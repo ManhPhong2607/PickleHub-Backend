@@ -56,7 +56,13 @@ namespace PickleHub.Authen.Application.Features.Auth.ForgotPassword
             _passwordResetTokenRepository.Add(resetToken);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            var resetLink = $"{_config["App:BaseUrl"]}/reset-password?token={tokenValue}";
+            var baseUrl = _config["App:BaseUrl"] ?? _config["App:FrontendUrl"] ?? Environment.GetEnvironmentVariable("APP_BASE_URL");
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                baseUrl = "https://picklehub.dev";
+            }
+            baseUrl = baseUrl.TrimEnd('/');
+            var resetLink = $"{baseUrl}/reset-password?token={tokenValue}";
             await _publishEndpoint.Publish(new PasswordResetRequestedEvent
             {
                 UserId = user.Id,
