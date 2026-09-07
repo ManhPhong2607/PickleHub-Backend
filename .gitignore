@@ -428,6 +428,8 @@ test-results/
 *.app
 !PickleHub.App/
 !PickleHub.App/**
+PickleHub.App/[Bb]in/
+PickleHub.App/[Oo]bj/
 
 # content below from: https://github.com/github/gitignore/blob/master/Global/macOS.gitignore
 # General

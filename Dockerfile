@@ -28,7 +28,7 @@ RUN dotnet restore PickleHub.sln
 COPY . .
 
 # Publish ONLY PickleHub.App (contains all 12 modules)
-RUN dotnet publish PickleHub.App/PickleHub.App.csproj -c Release -o /app /p:UseAppHost=false
+RUN dotnet publish PickleHub.App/PickleHub.App.csproj -c Release -o /app /p:UseAppHost=false /p:ErrorOnDuplicatePublishOutputFiles=false
 
 # ==============================================================================
 # 2. RUNTIME STAGE: ULTRA LEAN SINGLE PROCESS HOST (< 160MB RAM)
