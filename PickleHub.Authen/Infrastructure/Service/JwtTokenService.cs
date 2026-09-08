@@ -1,4 +1,4 @@
-﻿using Microsoft.IdentityModel.Tokens;
+using Microsoft.IdentityModel.Tokens;
 using PickleHub.Authen.Domain.Entities;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -19,9 +19,10 @@ namespace PickleHub.Authen.Infrastructure.Service
 
         public string GenerateAccessToken(User user)
         {
-            var secretKey = _config["Jwt:SecretKey"]!;
-            var issuer = _config["Jwt:Issuer"]!;
-            var minutes = int.Parse(_config["Jwt:AccessTokenMinutes"]!);
+            var secretKey = _config["Jwt:SecretKey"] 
+                ?? throw new InvalidOperationException("Jwt:SecretKey is not configured.");
+            var issuer = _config["Jwt:Issuer"] ?? "PickleHub.Authen";
+            var minutes = int.TryParse(_config["Jwt:AccessTokenMinutes"], out var m) ? m : 30;
 
             var claims = new[]
             {

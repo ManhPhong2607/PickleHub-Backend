@@ -427,8 +427,9 @@ test-results/
 *.dmg
 *.app
 !PickleHub.App/
-!PickleHub.App/**
 PickleHub.App/[Bb]in/
+PickleHub.App/bin/**
+PickleHub.App/obj/**
 PickleHub.App/[Oo]bj/
 
 # content below from: https://github.com/github/gitignore/blob/master/Global/macOS.gitignore
@@ -493,4 +494,12 @@ appsettings.Development.json
 !README.md
 # Temp db check
 .temp-db-check/
+
 start-picklehub.ps1
+
+# Next.js & Node artifacts
+.next/
+*.tsbuildinfo
+node_modules/
+dist/
+build/

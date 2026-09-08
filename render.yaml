@@ -34,6 +34,10 @@ envVarGroups:
         value: 8PFVpQHemzQ2RDJpDcSM5BIlTIhoM6LgvZFudvwRhVY=
       - key: Jwt__Issuer
         value: PickleHub.Authen
+      - key: Jwt__AccessTokenMinutes
+        value: "30"
+      - key: Jwt__RefreshTokenDays
+        value: "7"
       - key: Security__InternalApiKey
         value: PickleHubPrivateSecretKey2026
 
@@ -45,9 +49,15 @@ envVarGroups:
       - key: Cloudinary__ApiSecret
         value: 2Q7j_DMYjGFI2EeL9j1pOh9PB8s
 
+      # Application Base Url (Frontend URL for verification & password reset links)
+      - key: App__BaseUrl
+        value: https://picklehub.dev
+      - key: App__FrontendUrl
+        value: https://picklehub.dev
+
       # Resend Email
       - key: Resend__ApiKey
-        value: re_6AFBrGEe_GUVkN9nimkLdKa2w1cwq7yg1
+        sync: false
       - key: Resend__FromEmail
         value: noreply@picklehub.dev
       - key: Resend__FromName

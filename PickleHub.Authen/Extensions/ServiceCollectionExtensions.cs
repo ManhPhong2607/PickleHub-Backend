@@ -150,6 +150,8 @@ namespace PickleHub.Authen.Extensions
         public static IServiceCollection AddMessageBus(
           this IServiceCollection services, IConfiguration config)
         {
+            var rabbitHost = config["RabbitMQ:Host"];
+
             services.AddMassTransit(x =>
             {
                 x.AddConsumers(typeof(Program).Assembly);
@@ -157,29 +159,38 @@ namespace PickleHub.Authen.Extensions
                 x.SetEndpointNameFormatter(
                     new KebabCaseEndpointNameFormatter("authen", false));
 
-                x.UsingRabbitMq((ctx, cfg) =>
+                if (!string.IsNullOrWhiteSpace(rabbitHost) && !rabbitHost.Equals("localhost", StringComparison.OrdinalIgnoreCase))
                 {
-                    var host = config["RabbitMQ:Host"] ?? "localhost";
-                    var vhost = config["RabbitMQ:VirtualHost"] ?? "/";
-                    if (ushort.TryParse(config["RabbitMQ:Port"], out var port) && port > 0)
+                    x.UsingRabbitMq((ctx, cfg) =>
                     {
-                        cfg.Host(host, port, vhost, h =>
+                        var vhost = config["RabbitMQ:VirtualHost"] ?? "/";
+                        if (ushort.TryParse(config["RabbitMQ:Port"], out var port) && port > 0)
                         {
-                            h.Username(config["RabbitMQ:Username"] ?? "guest");
-                            h.Password(config["RabbitMQ:Password"] ?? "guest");
-                        });
-                    }
-                    else
-                    {
-                        cfg.Host(host, vhost, h =>
+                            cfg.Host(rabbitHost, port, vhost, h =>
+                            {
+                                h.Username(config["RabbitMQ:Username"] ?? "guest");
+                                h.Password(config["RabbitMQ:Password"] ?? "guest");
+                            });
+                        }
+                        else
                         {
-                            h.Username(config["RabbitMQ:Username"] ?? "guest");
-                            h.Password(config["RabbitMQ:Password"] ?? "guest");
-                        });
-                    }
+                            cfg.Host(rabbitHost, vhost, h =>
+                            {
+                                h.Username(config["RabbitMQ:Username"] ?? "guest");
+                                h.Password(config["RabbitMQ:Password"] ?? "guest");
+                            });
+                        }
 
-                    cfg.ConfigureEndpoints(ctx);
-                });
+                        cfg.ConfigureEndpoints(ctx);
+                    });
+                }
+                else
+                {
+                    x.UsingInMemory((ctx, cfg) =>
+                    {
+                        cfg.ConfigureEndpoints(ctx);
+                    });
+                }
             });
 
             return services;

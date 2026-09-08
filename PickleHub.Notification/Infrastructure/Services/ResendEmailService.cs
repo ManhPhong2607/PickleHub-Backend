@@ -11,8 +11,20 @@ public class ResendEmailService(HttpClient httpClient, IConfiguration config, IL
 {
     public async Task<bool> SendEmailAsync(string toEmail, string subject, string bodyHtml, CancellationToken ct = default)
     {
-        var apiKey = config["Resend:ApiKey"];
-        var fromEmail = config["Resend:FromEmail"] ?? "PickleHub <onboarding@resend.dev>";
+        var apiKey = config["Resend:ApiKey"] ?? config["RESEND_API_KEY"];
+        var configuredFrom = config["Resend:FromEmail"] ?? config["RESEND_FROM_EMAIL"];
+        var fromName = config["Resend:FromName"] ?? config["RESEND_FROM_NAME"] ?? "PickleHub Store";
+
+        // Mặc định sử dụng domain đã verify picklehub.dev thay vì onboarding@resend.dev (bị chặn 403 khi gửi email cho người khác)
+        string fromEmail;
+        if (string.IsNullOrWhiteSpace(configuredFrom) || configuredFrom.Contains("onboarding@resend.dev"))
+        {
+            fromEmail = $"{fromName} <noreply@picklehub.dev>";
+        }
+        else
+        {
+            fromEmail = configuredFrom.Contains('<') ? configuredFrom : $"{fromName} <{configuredFrom}>";
+        }
 
         // Fallback môi trường Development: Nếu chưa cấu hình Resend API Key thật ➔ Ghi log nội dung ra Console để test local mượt mà
         if (string.IsNullOrWhiteSpace(apiKey) || apiKey.Contains("mock_dev_key") || !apiKey.StartsWith("re_"))

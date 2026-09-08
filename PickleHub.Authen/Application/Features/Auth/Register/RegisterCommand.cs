@@ -59,7 +59,13 @@ namespace PickleHub.Authen.Application.Features.Auth.Register
             _verificationTokenRepository.Add(verificationToken);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            var verifyLink = $"{_config["App:BaseUrl"]}/verify-email?token={tokenValue}";
+            var baseUrl = _config["App:BaseUrl"] ?? _config["App:FrontendUrl"] ?? Environment.GetEnvironmentVariable("APP_BASE_URL");
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                baseUrl = "https://picklehub.dev";
+            }
+            baseUrl = baseUrl.TrimEnd('/');
+            var verifyLink = $"{baseUrl}/verify-email?token={tokenValue}";
 
             // Publish event để Notification Service gửi email và Customer Service tạo customer record
             await _publishEndpoint.Publish(new UserRegisteredEvent

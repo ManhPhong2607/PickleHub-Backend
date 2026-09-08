@@ -186,9 +186,15 @@ namespace PickleHub.Inventory.Extensions
         public static IServiceCollection AddHttpClients(
           this IServiceCollection services, IConfiguration config)
         {
+            var catalogUrl = config["Services:CatalogUrl"];
+            if (string.IsNullOrWhiteSpace(catalogUrl))
+            {
+                catalogUrl = "http://127.0.0.1:5002";
+            }
+
             services.AddHttpClient<ICatalogClient, CatalogHttpClient>(client =>
             {
-                client.BaseAddress = new Uri(config["Services:CatalogUrl"]!);
+                client.BaseAddress = new Uri(catalogUrl.TrimEnd('/') + "/");
             });
             return services;
         }

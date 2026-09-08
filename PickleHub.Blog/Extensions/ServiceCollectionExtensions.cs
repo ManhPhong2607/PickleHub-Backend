@@ -1,4 +1,4 @@
-﻿using FluentValidation;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -58,10 +58,20 @@ namespace PickleHub.Blog.Extensions
 
         public static IServiceCollection AddCatalogClient(this IServiceCollection services, IConfiguration config)
         {
+            var catalogUrl = config["Services:CatalogUrl"];
+            if (string.IsNullOrWhiteSpace(catalogUrl))
+            {
+                catalogUrl = "http://127.0.0.1:5002";
+            }
+
             services.AddHttpClient<ICatalogClient, CatalogHttpClient>(client =>
             {
-                client.BaseAddress = new Uri(config["Services:CatalogUrl"]!);
-                client.DefaultRequestHeaders.Add(AuthConstants.InternalApiKeyHeader, config["Security:InternalApiKey"]);
+                client.BaseAddress = new Uri(catalogUrl.TrimEnd('/') + "/");
+                var apiKey = config["Security:InternalApiKey"];
+                if (!string.IsNullOrWhiteSpace(apiKey))
+                {
+                    client.DefaultRequestHeaders.Add(AuthConstants.InternalApiKeyHeader, apiKey);
+                }
             });
 
             return services;

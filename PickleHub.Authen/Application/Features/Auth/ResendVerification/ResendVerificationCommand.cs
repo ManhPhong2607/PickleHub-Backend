@@ -53,7 +53,13 @@ namespace PickleHub.Authen.Application.Features.Auth.ResendVerification
             _verificationTokenRepository.Add(newToken);
             await _unitOfWork.SaveChangesAsync();
 
-            var verifyLink = $"{_config["App:BaseUrl"]}/verify-email?token={tokenValue}";
+            var baseUrl = _config["App:BaseUrl"] ?? _config["App:FrontendUrl"] ?? Environment.GetEnvironmentVariable("APP_BASE_URL");
+            if (string.IsNullOrWhiteSpace(baseUrl))
+            {
+                baseUrl = "https://picklehub.dev";
+            }
+            baseUrl = baseUrl.TrimEnd('/');
+            var verifyLink = $"{baseUrl}/verify-email?token={tokenValue}";
             await _publishEndpoint.Publish(new UserRegisteredEvent
             {
                 UserId = user.Id,

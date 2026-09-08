@@ -1,6 +1,7 @@
 using MassTransit;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using PickleHub.Common.Events.Authen;
 using PickleHub.Notification.Application.Common.Interfaces;
@@ -16,6 +17,7 @@ public class UserRegisteredConsumer(
     IEmailService emailService,
     IRateLimiterService rateLimiter,
     IHubContext<NotificationHub, INotificationClient> hubContext,
+    IConfiguration config,
     ILogger<UserRegisteredConsumer> logger) : IConsumer<UserRegisteredEvent>
 {
     public async Task Consume(ConsumeContext<UserRegisteredEvent> context)
@@ -84,9 +86,16 @@ public class UserRegisteredConsumer(
 
                 var subject = template?.Subject ?? "[PickleHub] Xác thực địa chỉ Email đăng ký tài khoản";
 
-                var verifyUrl = !string.IsNullOrEmpty(message.VerificationUrl) 
-                    ? message.VerificationUrl 
-                    : $"https://picklehub.vn/auth/verify-email?token={message.VerificationToken}&email={message.Email}";
+                var frontendBaseUrl = (config["App:FrontendUrl"] ?? config["App:BaseUrl"] ?? "https://picklehub.dev").TrimEnd('/');
+                var verifyUrl = message.VerificationUrl;
+                if (string.IsNullOrWhiteSpace(verifyUrl))
+                {
+                    verifyUrl = $"{frontendBaseUrl}/verify-email?token={message.VerificationToken}";
+                }
+                else if (!verifyUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !verifyUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                {
+                    verifyUrl = $"{frontendBaseUrl}/" + verifyUrl.TrimStart('/');
+                }
 
                 var customerName = !string.IsNullOrEmpty(message.CustomerName) ? message.CustomerName : message.Email;
 

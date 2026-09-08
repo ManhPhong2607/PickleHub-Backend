@@ -56,20 +56,27 @@ namespace PickleHub.Authen.Application.Features.Auth.Login
             if (user.IsBlocked)
                 throw new ForbiddenException("Tài khoản đã bị khóa.");
 
-            var refreshDays = int.Parse(_config["Jwt:RefreshTokenDays"]!);
+            var refreshDays = int.TryParse(_config["Jwt:RefreshTokenDays"], out var rd) ? rd : 7;
             var refreshTokenValue = _jwtService.GenerateRefreshTokenValue();
             var refreshToken = RefreshToken.Create(user.Id, refreshTokenValue, refreshDays);
 
             _refreshTokenRepository.Add(refreshToken);
             await _unitOfWork.SaveChangesAsync(ct);
 
-            await _publishEndpoint.Publish(new UserLoggedInEvent
+            try
             {
-                UserId = user.Id,
-                Email = user.Email,
-                Role = user.Role.ToString(),
-                OccurredAt = DateTime.UtcNow
-            }, ct);
+                await _publishEndpoint.Publish(new UserLoggedInEvent
+                {
+                    UserId = user.Id,
+                    Email = user.Email,
+                    Role = user.Role.ToString(),
+                    OccurredAt = DateTime.UtcNow
+                }, ct);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[WARN] Could not publish UserLoggedInEvent: {ex.Message}");
+            }
 
             return new AuthResultDto
             {
