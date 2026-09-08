@@ -100,6 +100,15 @@ namespace PickleHub.Catalog.Application.Features.Products.CreateProduct
                 OccurredAt = DateTime.UtcNow
             }, ct);
 
+            await _publishEndpoint.Publish(new ProductVariantCreatedEvent
+            {
+                VariantId = initialVariant.Id,
+                ProductId = product.Id,
+                Sku = initialVariant.Sku,
+                Price = initialVariant.Price,
+                OccurredAt = DateTime.UtcNow
+            }, ct);
+
             return new ProductDetailDto
             {
                 Id = product.Id,

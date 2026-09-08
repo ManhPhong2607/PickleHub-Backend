@@ -53,7 +53,7 @@ namespace PickleHub.Inventory.Application.Features.Inventory.UpdateThreshold
                 var prodId = request.ProductId ?? Guid.Empty;
                 var initialQty = request.CurrentQuantity.HasValue && request.CurrentQuantity.Value > 0
                     ? request.CurrentQuantity.Value
-                    : 15;
+                    : 0;
 
                 item = InventoryItem.Create(
                     request.VariantId,

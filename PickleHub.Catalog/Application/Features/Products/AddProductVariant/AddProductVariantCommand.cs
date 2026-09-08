@@ -1,8 +1,10 @@
 using PickleHub.Common.Interfaces;
 using MediatR;
+using MassTransit;
 using PickleHub.Catalog.Application.Features.Products.DTOs;
 using PickleHub.Catalog.Domain.Repositories;
 using PickleHub.Common.Exceptions;
+using PickleHub.Common.Events.Catalog;
 
 namespace PickleHub.Catalog.Application.Features.Products.AddProductVarriant
 {
@@ -17,11 +19,16 @@ namespace PickleHub.Catalog.Application.Features.Products.AddProductVarriant
     {
         private readonly IProductRepository _productRepository;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IPublishEndpoint _publishEndpoint;
 
-        public AddProductVariantHandler(IProductRepository productRepository, IUnitOfWork unitOfWork)
+        public AddProductVariantHandler(
+            IProductRepository productRepository,
+            IUnitOfWork unitOfWork,
+            IPublishEndpoint publishEndpoint)
         {
             _productRepository = productRepository;
             _unitOfWork = unitOfWork;
+            _publishEndpoint = publishEndpoint;
         }
 
         public async Task<ProductVariantDto> Handle(AddProductVariantCommand request, CancellationToken ct)
@@ -31,8 +38,16 @@ namespace PickleHub.Catalog.Application.Features.Products.AddProductVarriant
 
             var variant = product.AddVariant(request.Sku, request.AttributesJson, request.Price);
 
-
             await _unitOfWork.SaveChangesAsync(ct);
+
+            await _publishEndpoint.Publish(new ProductVariantCreatedEvent
+            {
+                VariantId = variant.Id,
+                ProductId = product.Id,
+                Sku = variant.Sku,
+                Price = variant.Price,
+                OccurredAt = DateTime.UtcNow
+            }, ct);
 
             return new ProductVariantDto
             {
@@ -44,3 +59,4 @@ namespace PickleHub.Catalog.Application.Features.Products.AddProductVarriant
         }
     }
 }
+

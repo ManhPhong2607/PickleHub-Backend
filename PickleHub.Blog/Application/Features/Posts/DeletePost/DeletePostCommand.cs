@@ -21,7 +21,7 @@ namespace PickleHub.Blog.Application.Features.Posts.DeletePost
                 ?? throw new NotFoundException("Không tìm thấy bài viết.");
 
             if(!post.CanBeDeleted)
-                throw new ConflictException("Không thể xóa bài viết đang ở trạng thái Published. Vui lòng lưu trữ (Archive) bài viết trước khi xóa.");
+                throw new ConflictException("Không thể xóa bài viết đang ở trạng thái công khai. Vui lòng ẩn bài viết trước khi xóa.");
 
             _postRepository.Remove(post);
             await _unitOfWork.SaveChangesAsync(ct);
