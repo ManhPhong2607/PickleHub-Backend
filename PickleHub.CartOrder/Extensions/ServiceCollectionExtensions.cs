@@ -43,27 +43,32 @@ public static class ServiceCollectionExtensions
     {
         services.AddHttpClient<ICatalogClient, CatalogHttpClient>(client =>
         {
-            client.BaseAddress = new Uri(configuration["Services:CatalogUrl"]!);
+            var url = configuration["Services:CatalogUrl"];
+            client.BaseAddress = new Uri(string.IsNullOrWhiteSpace(url) ? "http://127.0.0.1:5002/" : url.TrimEnd('/') + "/");
         });
 
         services.AddHttpClient<IInventoryClient, InventoryHttpClient>(client =>
         {
-            client.BaseAddress = new Uri(configuration["Services:InventoryUrl"]!);
+            var url = configuration["Services:InventoryUrl"];
+            client.BaseAddress = new Uri(string.IsNullOrWhiteSpace(url) ? "http://127.0.0.1:5005/" : url.TrimEnd('/') + "/");
         });
 
         services.AddHttpClient<ICustomerClient, CustomerHttpClient>(client =>
         {
-            client.BaseAddress = new Uri(configuration["Services:CustomerUrl"]!);
+            var url = configuration["Services:CustomerUrl"];
+            client.BaseAddress = new Uri(string.IsNullOrWhiteSpace(url) ? "http://127.0.0.1:5003/" : url.TrimEnd('/') + "/");
         });
 
         services.AddHttpClient<ISystemClient, SystemHttpClient>(client =>
         {
-            client.BaseAddress = new Uri(configuration["Services:SystemUrl"]!);
+            var url = configuration["Services:SystemUrl"];
+            client.BaseAddress = new Uri(string.IsNullOrWhiteSpace(url) ? "http://127.0.0.1:5004/" : url.TrimEnd('/') + "/");
         });
 
         services.AddHttpClient<IPaymentClient, PaymentHttpClient>(client =>
         {
-            client.BaseAddress = new Uri(configuration["Services:PaymentUrl"]!);
+            var url = configuration["Services:PaymentUrl"];
+            client.BaseAddress = new Uri(string.IsNullOrWhiteSpace(url) ? "http://127.0.0.1:5008/" : url.TrimEnd('/') + "/");
         });
 
         return services;
