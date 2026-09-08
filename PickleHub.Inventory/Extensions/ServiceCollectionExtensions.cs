@@ -95,15 +95,27 @@ namespace PickleHub.Inventory.Extensions
         public static IServiceCollection AddCorsPolicy(
             this IServiceCollection services, IConfiguration config)
         {
-            var origins = config.GetSection("Cors:AllowedOrigins")
-                .Get<string[]>() ?? [];
+            var origins = config.GetSection("Cors:AllowedOrigins").Get<string[]>();
 
             services.AddCors(options =>
             {
                 options.AddDefaultPolicy(policy =>
-                    policy.WithOrigins(origins)
-                          .AllowAnyHeader()
-                          .AllowAnyMethod());
+                {
+                    if (origins != null && origins.Length > 0)
+                    {
+                        policy.WithOrigins(origins)
+                              .AllowAnyHeader()
+                              .AllowAnyMethod()
+                              .AllowCredentials();
+                    }
+                    else
+                    {
+                        policy.SetIsOriginAllowed(_ => true)
+                              .AllowAnyHeader()
+                              .AllowAnyMethod()
+                              .AllowCredentials();
+                    }
+                });
             });
 
             return services;

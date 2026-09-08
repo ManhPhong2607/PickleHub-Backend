@@ -1,4 +1,4 @@
-﻿namespace PickleHub.Inventory.Domain.Enums
+namespace PickleHub.Inventory.Domain.Enums
 {
     public enum TransactionType
     {
@@ -6,6 +6,7 @@
         Reserve, // giữ chỗ
         ReleaseReservation, // nhả giữ chỗ
         Deduct, // trừ kho thật
-        Return  // hoàn kho
+        Return,  // hoàn kho
+        Adjustment // điều chỉnh kiểm kê / hao hụt
     }
 }

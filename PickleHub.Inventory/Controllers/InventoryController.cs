@@ -12,6 +12,7 @@ using PickleHub.Inventory.Application.Features.Inventory.ImportStock;
 using PickleHub.Inventory.Application.Features.Inventory.ReleaseStock;
 using PickleHub.Inventory.Application.Features.Inventory.ReserveStock;
 using PickleHub.Inventory.Application.Features.Inventory.UpdateThreshold;
+using PickleHub.Inventory.Application.Features.Inventory.AdjustStock;
 
 namespace PickleHub.Inventory.Controllers
 {
@@ -68,6 +69,30 @@ namespace PickleHub.Inventory.Controllers
             CancellationToken ct)
         {
             var result = await mediator.Send(new UpdateThresholdCommand(variantId, body.Threshold, body.ProductId, body.SkuSnapshot, body.CurrentQuantity), ct);
+            return Ok(result);
+        }
+
+        [HttpPost("variants/{variantId:guid}/adjust")]
+        public async Task<IActionResult> AdjustStock(
+            Guid variantId,
+            [FromBody] AdjustStockRequest body,
+            CancellationToken ct)
+        {
+            var result = await mediator.Send(new AdjustStockCommand(
+                variantId,
+                body.Delta,
+                body.Reason,
+                body.ReferenceId
+            ), ct);
+            return Ok(result);
+        }
+
+        [HttpPost("bulk-adjust")]
+        public async Task<IActionResult> BulkAdjust(
+            [FromBody] BulkAdjustRequest body,
+            CancellationToken ct)
+        {
+            var result = await mediator.Send(new BulkAdjustStockCommand(body.Adjustments), ct);
             return Ok(result);
         }
 
@@ -140,6 +165,8 @@ namespace PickleHub.Inventory.Controllers
         }
 
         public record UpdateThresholdRequest(int Threshold, Guid? ProductId = null, string? SkuSnapshot = null, int? CurrentQuantity = null);
+        public record AdjustStockRequest(int Delta, string Reason, string? ReferenceId = null);
+        public record BulkAdjustRequest(List<AdjustStockItemDto> Adjustments);
 
         // thêm OrderId bắt buộc (không nullable) — đây là ReferenceId dùng để chống Reserve/Release trùng lặp khi CartOrder timeout & gọi lại (retry từ client).
         public record ReserveStockRequest(Guid VariantId, int Quantity, Guid OrderId);

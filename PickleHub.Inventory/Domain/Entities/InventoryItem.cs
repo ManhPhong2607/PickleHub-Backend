@@ -149,5 +149,35 @@ namespace PickleHub.Inventory.Domain.Entities
             Version++;
             SetUpdated();
         }
+
+        public StockTransaction Adjust(int delta, Guid? referenceId = null, string? note = null)
+        {
+            if (delta == 0)
+                throw new DomainException("Số lượng điều chỉnh phải khác 0.");
+
+            if (delta < 0)
+            {
+                int decreaseAmount = -delta;
+                if (Quantity < decreaseAmount)
+                    throw new DomainException($"Tồn kho vật lý không đủ để giảm. Hiện có: {Quantity}, yêu cầu giảm: {decreaseAmount}.");
+
+                if (AvailableQuantity < decreaseAmount)
+                    throw new DomainException($"Không thể giảm tồn kho xuống dưới mức đang giữ chỗ cho đơn hàng ({ReservedQuantity} SKU).");
+            }
+
+            Quantity += delta;
+            Version++;
+            SetUpdated();
+
+            var transaction = StockTransaction.Create(
+                Id,
+                TransactionType.Adjustment,
+                Math.Abs(delta),
+                referenceId,
+                note
+            );
+            _transactions.Add(transaction);
+            return transaction;
+        }
     }
 }
