@@ -133,6 +133,8 @@ namespace PickleHub.Inventory.Extensions
 
                 x.UsingRabbitMq((ctx, cfg) =>
                 {
+                    cfg.UseMessageRetry(r => r.Interval(3, TimeSpan.FromSeconds(5)));
+
                     var host = config["RabbitMQ:Host"] ?? "localhost";
                     var vhost = config["RabbitMQ:VirtualHost"] ?? "/";
                     if (ushort.TryParse(config["RabbitMQ:Port"], out var port) && port > 0)

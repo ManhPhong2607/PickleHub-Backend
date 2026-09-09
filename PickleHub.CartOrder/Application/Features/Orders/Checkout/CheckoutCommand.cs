@@ -161,12 +161,24 @@ public class CheckoutCommandHandler(
                 });
             }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             // Giải phóng toàn bộ tồn kho đã giữ chỗ nếu có lỗi bất kỳ trong quá trình xử lý loop
-            foreach (var reserved in reservedItems)
+            if (reservedItems.Count > 0)
             {
-                await inventoryClient.ReleaseStockAsync(reserved.ProductVariantId, reserved.Quantity, orderId, ct);
+                await publishEndpoint.Publish(new
+                    OrderCheckoutFailedEvent
+                    {
+                        OrderId = orderId,
+                        CustomerId = request.UserId,
+                        Items = reservedItems.Select(r => new ReservedItemPayload
+                        {
+                            ProductVariantId = r.ProductVariantId,
+                            Quantity = r.Quantity
+                        }).ToList(),
+                        Reason = $"Lỗi trong quá trình kiểm tra kho: {ex.Message}",
+                        OccurAt = DateTime.UtcNow,
+                    }, ct);
             }
             throw;
         }
@@ -235,11 +247,22 @@ public class CheckoutCommandHandler(
                 await db.SaveChangesAsync(ct);
 
                 // Giải phóng toàn bộ tồn kho đã giữ chỗ trước đó do lỗi cổng thanh toán
-                foreach (var reserved in reservedItems)
+                if (reservedItems.Count > 0)
                 {
-                    await inventoryClient.ReleaseStockAsync(reserved.ProductVariantId, reserved.Quantity, orderId, ct);
+                    await publishEndpoint.Publish(new
+                        OrderCheckoutFailedEvent
+                        {
+                            OrderId = orderId,
+                            CustomerId = request.UserId,
+                            Items = reservedItems.Select(r => new ReservedItemPayload
+                            {
+                                ProductVariantId = r.ProductVariantId,
+                                Quantity = r.Quantity
+                            }).ToList(),
+                            Reason = $"Lỗi cổng thanh toán PayOS: {ex.Message}",
+                            OccurAt = DateTime.UtcNow,
+                        }, ct);
                 }
-
                 throw new Exception($"Không thể hoàn tất Checkout do lỗi cổng thanh toán: {ex.Message}", ex);
             }
         }
