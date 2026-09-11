@@ -94,6 +94,29 @@ public class InventoryHttpClient(HttpClient httpClient, IConfiguration config) :
             return false;
         }
     }
+
+    public async Task<bool> DeductStockAsync(Guid orderId, List<(Guid VariantId, int Quantity)> items, CancellationToken ct = default)
+    {
+        try
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, "inventory/deduct")
+            {
+                Content = JsonContent.Create(new
+                {
+                    OrderId = orderId,
+                    Items = items.Select(i => new { VariantId = i.VariantId, Quantity = i.Quantity })
+                })
+            };
+            request.Headers.Add("X-Internal-Key", GetInternalToken());
+
+            var response = await httpClient.SendAsync(request, ct);
+            return response.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }
 
 // DTO nội bộ đại diện cho dữ liệu trả về từ Inventory Service

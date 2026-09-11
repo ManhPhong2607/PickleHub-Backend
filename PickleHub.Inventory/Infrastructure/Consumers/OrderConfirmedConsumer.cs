@@ -26,11 +26,23 @@ namespace PickleHub.Inventory.Infrastructure.Consumers
         {
             var message = context.Message;
 
-            if (message.NewStatus != OrderStatus.Confirmed) return;
+            // Xử lý trừ tồn kho khi đơn hàng chuyển sang Confirmed, Shipping hoặc Completed (phòng trường hợp COD chuyển thẳng sang Shipping/Completed)
+            if (message.NewStatus != OrderStatus.Confirmed &&
+                message.NewStatus != OrderStatus.Shipping &&
+                message.NewStatus != OrderStatus.Completed)
+            {
+                return;
+            }
+
+            if (message.Items == null || message.Items.Count == 0)
+            {
+                _logger.LogWarning("OrderStatusUpdatedEvent nhận được không có Items cho OrderId: {OrderId}. Bỏ qua trừ kho tự động.", message.OrderId);
+                return;
+            }
 
             _logger.LogInformation(
-                "Đơn hàng đã được xác nhận. Đang trừ kho cho OrderId: {OrderId}",
-                message.OrderId);
+                "Đơn hàng ở trạng thái {Status}. Đang xử lý trừ kho (idempotent) cho OrderId: {OrderId}",
+                message.NewStatus, message.OrderId);
 
             var result = await _mediator.Send(new DeductStockCommand(
                 message.OrderId,

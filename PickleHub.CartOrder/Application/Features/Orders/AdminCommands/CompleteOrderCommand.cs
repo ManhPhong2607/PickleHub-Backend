@@ -13,7 +13,8 @@ public record CompleteOrderCommand(Guid OrderId) : IRequest<bool>;
 public class CompleteOrderCommandHandler(
     ICartOrderDbContext db,
     ICustomerClient customerClient,
-    IPublishEndpoint publishEndpoint
+    IPublishEndpoint publishEndpoint,
+    IInventoryClient inventoryClient
 ) : IRequestHandler<CompleteOrderCommand, bool>
 {
     public async Task<bool> Handle(CompleteOrderCommand request, CancellationToken ct)
@@ -40,6 +41,25 @@ public class CompleteOrderCommandHandler(
 
         var customer = await customerClient.GetCustomerDetailsAsync(order.CustomerId, ct);
 
+        var itemsPayload = (order.Items ?? new List<Domain.Entities.OrderItem>()).Select(i => new OrderItemPayload
+        {
+            ProductId = i.ProductId,
+            ProductVariantId = i.ProductVariantId,
+            ProductNameSnapshot = i.ProductNameSnapshot,
+            VariantAttributesSnapshot = i.VariantAttributesSnapshot,
+            Quantity = i.Quantity,
+            UnitPrice = i.UnitPrice
+        }).ToList();
+
+        // Đảm bảo hàng được trừ kho thật nếu các bước trước đó chưa trừ (Idempotent)
+        if (order.Items != null && order.Items.Count > 0)
+        {
+            await inventoryClient.DeductStockAsync(
+                order.Id,
+                order.Items.Select(i => (i.ProductVariantId, i.Quantity)).ToList(),
+                ct);
+        }
+
         await publishEndpoint.Publish(new OrderStatusUpdatedEvent
         {
             OrderId = order.Id,
@@ -49,15 +69,7 @@ public class CompleteOrderCommandHandler(
             OldStatus = Enum.Parse<OrderStatus>(oldStatus.ToString(), true),
             NewStatus = Enum.Parse<OrderStatus>(order.Status.ToString(), true),
             TotalAmount = order.TotalAmount,
-            Items = (order.Items ?? new List<Domain.Entities.OrderItem>()).Select(i => new OrderItemPayload
-            {
-                ProductId = i.ProductId,
-                ProductVariantId = i.ProductVariantId,
-                ProductNameSnapshot = i.ProductNameSnapshot,
-                VariantAttributesSnapshot = i.VariantAttributesSnapshot,
-                Quantity = i.Quantity,
-                UnitPrice = i.UnitPrice
-            }).ToList(),
+            Items = itemsPayload,
             UpdatedAt = DateTime.UtcNow
         }, ct);
 

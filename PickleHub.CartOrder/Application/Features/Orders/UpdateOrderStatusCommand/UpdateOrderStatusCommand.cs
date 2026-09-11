@@ -13,7 +13,8 @@ public record UpdateOrderStatusCommand(Guid OrderId, OrderStatus OrderStatus) : 
 public class UpdateOrderStatusCommandHandler(
     ICartOrderDbContext db,
     ICustomerClient customerClient,
-    IPublishEndpoint publishEndpoint
+    IPublishEndpoint publishEndpoint,
+    IInventoryClient inventoryClient
 ) : IRequestHandler<UpdateOrderStatusCommand, string>
 {
     public async Task<string> Handle(UpdateOrderStatusCommand request, CancellationToken ct)
@@ -38,6 +39,28 @@ public class UpdateOrderStatusCommandHandler(
 
         await db.SaveChangesAsync(ct);
 
+        var itemsPayload = (order.Items ?? new List<Domain.Entities.OrderItem>()).Select(i => new OrderItemPayload
+        {
+            ProductId = i.ProductId,
+            ProductVariantId = i.ProductVariantId,
+            ProductNameSnapshot = i.ProductNameSnapshot,
+            VariantAttributesSnapshot = i.VariantAttributesSnapshot,
+            Quantity = i.Quantity,
+            UnitPrice = i.UnitPrice
+        }).ToList();
+
+        // Nếu trạng thái chuyển sang Confirmed, Shipping, hoặc Completed -> Trừ tồn kho thực tế (Idempotent)
+        if ((request.OrderStatus == OrderStatus.Confirmed ||
+             request.OrderStatus == OrderStatus.Shipping ||
+             request.OrderStatus == OrderStatus.Completed) &&
+            order.Items != null && order.Items.Count > 0)
+        {
+            await inventoryClient.DeductStockAsync(
+                order.Id,
+                order.Items.Select(i => (i.ProductVariantId, i.Quantity)).ToList(),
+                ct);
+        }
+
         await publishEndpoint.Publish(new OrderStatusUpdatedEvent
         {
             OrderId = order.Id,
@@ -47,15 +70,7 @@ public class UpdateOrderStatusCommandHandler(
             OldStatus = Enum.Parse<OrderStatus>(oldStatus.ToString(), true),
             NewStatus = Enum.Parse<OrderStatus>(order.Status.ToString(), true),
             TotalAmount = order.TotalAmount,
-            Items = (order.Items ?? new List<Domain.Entities.OrderItem>()).Select(i => new OrderItemPayload
-            {
-                ProductId = i.ProductId,
-                ProductVariantId = i.ProductVariantId,
-                ProductNameSnapshot = i.ProductNameSnapshot,
-                VariantAttributesSnapshot = i.VariantAttributesSnapshot,
-                Quantity = i.Quantity,
-                UnitPrice = i.UnitPrice
-            }).ToList(),
+            Items = itemsPayload,
             UpdatedAt = DateTime.UtcNow
         }, ct);
         

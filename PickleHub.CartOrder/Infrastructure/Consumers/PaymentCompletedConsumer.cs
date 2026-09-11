@@ -13,7 +13,8 @@ namespace PickleHub.CartOrder.Infrastructure.Consumers;
 public class PaymentCompletedConsumer(
     ICartOrderDbContext db,
     ICustomerClient customerClient,
-    IPublishEndpoint publishEndpoint
+    IPublishEndpoint publishEndpoint,
+    IInventoryClient inventoryClient
 ) : IConsumer<PaymentCompletedEvent>
 {
     public async Task Consume(ConsumeContext<PaymentCompletedEvent> context)
@@ -43,10 +44,28 @@ public class PaymentCompletedConsumer(
         order.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync();
 
-        // 4. Nếu chuyển sang Confirmed -> Publish OrderStatusUpdatedEvent để gửi email xác nhận đã thanh toán & xác nhận đơn
+        // 4. Nếu chuyển sang Confirmed -> Trừ kho và Publish OrderStatusUpdatedEvent
         if (order.Status == OrderStatus.Confirmed)
         {
             var customer = await customerClient.GetCustomerDetailsAsync(order.CustomerId);
+
+            var itemsPayload = (order.Items ?? new List<Domain.Entities.OrderItem>()).Select(i => new OrderItemPayload
+            {
+                ProductId = i.ProductId,
+                ProductVariantId = i.ProductVariantId,
+                ProductNameSnapshot = i.ProductNameSnapshot,
+                VariantAttributesSnapshot = i.VariantAttributesSnapshot,
+                Quantity = i.Quantity,
+                UnitPrice = i.UnitPrice
+            }).ToList();
+
+            // Đồng bộ trừ tồn kho sang Inventory Service
+            if (order.Items != null && order.Items.Count > 0)
+            {
+                await inventoryClient.DeductStockAsync(
+                    order.Id,
+                    order.Items.Select(i => (i.ProductVariantId, i.Quantity)).ToList());
+            }
 
             await publishEndpoint.Publish(new OrderStatusUpdatedEvent
             {
@@ -56,6 +75,8 @@ public class PaymentCompletedConsumer(
                 CustomerEmail = customer?.Email ?? string.Empty,
                 OldStatus = Enum.Parse<PickleHub.Common.Enums.OrderStatus>(oldStatus.ToString(), true),
                 NewStatus = Enum.Parse<PickleHub.Common.Enums.OrderStatus>(order.Status.ToString(), true),
+                TotalAmount = order.TotalAmount,
+                Items = itemsPayload,
                 UpdatedAt = DateTime.UtcNow
             });
         }

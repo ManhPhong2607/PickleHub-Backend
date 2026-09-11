@@ -76,47 +76,58 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddMessageBus(this IServiceCollection services, IConfiguration configuration)
     {
+        var rabbitHost = configuration["RabbitMQ:Host"];
+
         services.AddMassTransit(x =>
         {
             x.AddConsumer<PaymentCompletedConsumer>();
             x.AddConsumer<PaymentFailedConsumer>();
             x.AddConsumer<StockDepletedConsumer>();
 
-            x.UsingRabbitMq((ctx, cfg) =>
+            if (!string.IsNullOrWhiteSpace(rabbitHost) && !rabbitHost.Equals("localhost", StringComparison.OrdinalIgnoreCase))
             {
-                var host = configuration["RabbitMQ:Host"] ?? "localhost";
-                var vhost = configuration["RabbitMQ:VirtualHost"] ?? "/";
-                if (ushort.TryParse(configuration["RabbitMQ:Port"], out var port) && port > 0)
+                x.UsingRabbitMq((ctx, cfg) =>
                 {
-                    cfg.Host(host, port, vhost, h =>
+                    var vhost = configuration["RabbitMQ:VirtualHost"] ?? "/";
+                    if (ushort.TryParse(configuration["RabbitMQ:Port"], out var port) && port > 0)
                     {
-                        h.Username(configuration["RabbitMQ:Username"] ?? "guest");
-                        h.Password(configuration["RabbitMQ:Password"] ?? "guest");
-                    });
-                }
-                else
-                {
-                    cfg.Host(host, vhost, h =>
+                        cfg.Host(rabbitHost, port, vhost, h =>
+                        {
+                            h.Username(configuration["RabbitMQ:Username"] ?? "guest");
+                            h.Password(configuration["RabbitMQ:Password"] ?? "guest");
+                        });
+                    }
+                    else
                     {
-                        h.Username(configuration["RabbitMQ:Username"] ?? "guest");
-                        h.Password(configuration["RabbitMQ:Password"] ?? "guest");
+                        cfg.Host(rabbitHost, vhost, h =>
+                        {
+                            h.Username(configuration["RabbitMQ:Username"] ?? "guest");
+                            h.Password(configuration["RabbitMQ:Password"] ?? "guest");
+                        });
+                    }
+
+                    cfg.ReceiveEndpoint("cartorder-payment-completed", e =>
+                    {
+                        e.ConfigureConsumer<PaymentCompletedConsumer>(ctx);
                     });
-                }
 
-                cfg.ReceiveEndpoint("cartorder-payment-completed", e =>
-                {
-                    e.ConfigureConsumer<PaymentCompletedConsumer>(ctx);
+                    cfg.ReceiveEndpoint("cartorder-payment-failed", e =>
+                    {
+                        e.ConfigureConsumer<PaymentFailedConsumer>(ctx);
+                    });
+                    cfg.ReceiveEndpoint("cartorder-stock-depleted", e =>   
+                    {
+                        e.ConfigureConsumer<StockDepletedConsumer>(ctx);
+                    });
                 });
-
-                cfg.ReceiveEndpoint("cartorder-payment-failed", e =>
+            }
+            else
+            {
+                x.UsingInMemory((ctx, cfg) =>
                 {
-                    e.ConfigureConsumer<PaymentFailedConsumer>(ctx);
+                    cfg.ConfigureEndpoints(ctx);
                 });
-                cfg.ReceiveEndpoint("cartorder-stock-depleted", e =>   
-                {
-                    e.ConfigureConsumer<StockDepletedConsumer>(ctx);
-                });
-            });
+            }
         });
 
         return services;

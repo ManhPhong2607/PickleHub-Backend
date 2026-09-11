@@ -13,12 +13,15 @@ public record ConfirmOrderCommand(Guid OrderId) : IRequest<bool>;
 public class ConfirmOrderCommandHandler(
     ICartOrderDbContext db,
     ICustomerClient customerClient,
-    IPublishEndpoint publishEndpoint
+    IPublishEndpoint publishEndpoint,
+    IInventoryClient inventoryClient
 ) : IRequestHandler<ConfirmOrderCommand, bool>
 {
     public async Task<bool> Handle(ConfirmOrderCommand request, CancellationToken ct)
     {
-        var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == request.OrderId, ct);
+        var order = await db.Orders
+            .Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.Id == request.OrderId, ct);
         if (order == null)
         {
             throw new KeyNotFoundException("Không tìm thấy đơn hàng yêu cầu.");
@@ -36,6 +39,25 @@ public class ConfirmOrderCommandHandler(
 
         await db.SaveChangesAsync(ct);
 
+        var itemsPayload = (order.Items ?? new List<Domain.Entities.OrderItem>()).Select(i => new OrderItemPayload
+        {
+            ProductId = i.ProductId,
+            ProductVariantId = i.ProductVariantId,
+            ProductNameSnapshot = i.ProductNameSnapshot,
+            VariantAttributesSnapshot = i.VariantAttributesSnapshot,
+            Quantity = i.Quantity,
+            UnitPrice = i.UnitPrice
+        }).ToList();
+
+        // Đồng bộ trừ kho trực tiếp sang Inventory Service
+        if (order.Items != null && order.Items.Count > 0)
+        {
+            await inventoryClient.DeductStockAsync(
+                order.Id,
+                order.Items.Select(i => (i.ProductVariantId, i.Quantity)).ToList(),
+                ct);
+        }
+
         await publishEndpoint.Publish(new OrderStatusUpdatedEvent
         {
             OrderId = order.Id,
@@ -44,6 +66,8 @@ public class ConfirmOrderCommandHandler(
             CustomerEmail = customer?.Email ?? string.Empty,
             OldStatus = Enum.Parse<OrderStatus>(oldStatus.ToString(), true),
             NewStatus = Enum.Parse<OrderStatus>(order.Status.ToString(), true),
+            TotalAmount = order.TotalAmount,
+            Items = itemsPayload,
             UpdatedAt = DateTime.UtcNow
         }, ct);
 

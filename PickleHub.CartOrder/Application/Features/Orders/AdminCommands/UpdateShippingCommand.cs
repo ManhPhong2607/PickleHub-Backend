@@ -17,12 +17,15 @@ public record UpdateShippingCommand(
 public class UpdateShippingCommandHandler(
     ICartOrderDbContext db,
     ICustomerClient customerClient,
-    IPublishEndpoint publishEndpoint
+    IPublishEndpoint publishEndpoint,
+    IInventoryClient inventoryClient
 ) : IRequestHandler<UpdateShippingCommand, bool>
 {
     public async Task<bool> Handle(UpdateShippingCommand request, CancellationToken ct)
     {
-        var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == request.OrderId, ct);
+        var order = await db.Orders
+            .Include(o => o.Items)
+            .FirstOrDefaultAsync(o => o.Id == request.OrderId, ct);
         if (order is null)
         {
             throw new KeyNotFoundException($"Không tìm thấy đơn hàng với mã ID {request.OrderId}.");
@@ -57,6 +60,25 @@ public class UpdateShippingCommandHandler(
 
         var customer = await customerClient.GetCustomerDetailsAsync(order.CustomerId, ct);
 
+        var itemsPayload = (order.Items ?? new List<Domain.Entities.OrderItem>()).Select(i => new OrderItemPayload
+        {
+            ProductId = i.ProductId,
+            ProductVariantId = i.ProductVariantId,
+            ProductNameSnapshot = i.ProductNameSnapshot,
+            VariantAttributesSnapshot = i.VariantAttributesSnapshot,
+            Quantity = i.Quantity,
+            UnitPrice = i.UnitPrice
+        }).ToList();
+
+        // Đồng bộ trừ tồn kho sang Inventory Service
+        if (order.Items != null && order.Items.Count > 0)
+        {
+            await inventoryClient.DeductStockAsync(
+                order.Id,
+                order.Items.Select(i => (i.ProductVariantId, i.Quantity)).ToList(),
+                ct);
+        }
+
         await publishEndpoint.Publish(new OrderStatusUpdatedEvent
         {
             OrderId = order.Id,
@@ -65,6 +87,8 @@ public class UpdateShippingCommandHandler(
             CustomerEmail = customer?.Email ?? string.Empty,
             OldStatus = Enum.Parse<PickleHub.Common.Enums.OrderStatus>(oldStatus.ToString(), true),
             NewStatus = Enum.Parse<PickleHub.Common.Enums.OrderStatus>(order.Status.ToString(), true),
+            TotalAmount = order.TotalAmount,
+            Items = itemsPayload,
             ShippingProvider = order.ShippingProvider,
             TrackingNumber = order.TrackingNumber,
             TrackingUrl = order.TrackingUrl,

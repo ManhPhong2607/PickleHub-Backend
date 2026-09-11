@@ -11,6 +11,10 @@ public record OrderItemDto
     public string ProductNameSnapshot { get; init; } = string.Empty;
     public string VariantAttributesSnapshot { get; init; } = string.Empty;
     public string? ImageUrlSnapshot { get; init; }
+
+    public string ProductName => ProductNameSnapshot;
+    public string? ImageUrl => ImageUrlSnapshot;
+    public string? ProductImage => ImageUrlSnapshot;
     
     public decimal UnitPrice { get; init; }
     public int Quantity { get; init; }

@@ -13,6 +13,7 @@ using PickleHub.Inventory.Application.Features.Inventory.ReleaseStock;
 using PickleHub.Inventory.Application.Features.Inventory.ReserveStock;
 using PickleHub.Inventory.Application.Features.Inventory.UpdateThreshold;
 using PickleHub.Inventory.Application.Features.Inventory.AdjustStock;
+using PickleHub.Inventory.Application.Features.Inventory.DeductStock;
 
 namespace PickleHub.Inventory.Controllers
 {
@@ -164,12 +165,32 @@ namespace PickleHub.Inventory.Controllers
             return Ok(result);
         }
 
+        [HttpPost("deduct")]
+        [AllowAnonymous]
+        public async Task<IActionResult> Deduct([FromBody] DeductStockRequest body, CancellationToken ct)
+        {
+            var internalToken = config["Security:InternalApiKey"]
+                  ?? throw new InvalidOperationException("Thiếu cấu hình Security:InternalApiKey");
+            if (!Request.Headers.TryGetValue("X-Internal-Key", out var headerKey) || headerKey != internalToken)
+            {
+                return Unauthorized("Yêu cầu này không hợp lệ hoặc thiếu mã khóa dịch vụ nội bộ.");
+            }
+
+            var result = await mediator.Send(new DeductStockCommand(
+                body.OrderId,
+                (body.Items ?? []).Select(i => new DeductStockItem(i.VariantId, i.Quantity)).ToList()), ct);
+
+            return Ok(result);
+        }
+
         public record UpdateThresholdRequest(int Threshold, Guid? ProductId = null, string? SkuSnapshot = null, int? CurrentQuantity = null);
         public record AdjustStockRequest(int Delta, string Reason, string? ReferenceId = null);
         public record BulkAdjustRequest(List<AdjustStockItemDto> Adjustments);
 
-        // thêm OrderId bắt buộc (không nullable) — đây là ReferenceId dùng để chống Reserve/Release trùng lặp khi CartOrder timeout & gọi lại (retry từ client).
+        // thêm OrderId bắt buộc (không nullable) — đây là ReferenceId dùng để chống Reserve/Release/Deduct trùng lặp khi CartOrder timeout & gọi lại (retry từ client).
         public record ReserveStockRequest(Guid VariantId, int Quantity, Guid OrderId);
         public record ReleaseStockRequest(Guid VariantId, int Quantity, Guid OrderId);
+        public record DeductStockRequest(Guid OrderId, List<DeductStockItemRequest> Items);
+        public record DeductStockItemRequest(Guid VariantId, int Quantity);
     }
 }

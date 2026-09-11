@@ -50,36 +50,47 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddMessageBus(this IServiceCollection services, IConfiguration configuration)
     {
+        var rabbitHost = configuration["RabbitMQ:Host"];
+
         services.AddMassTransit(x =>
         {
             x.AddConsumer<Infrastructure.Consumers.OrderCancelledConsumer>();
 
-            x.UsingRabbitMq((context, cfg) =>
+            if (!string.IsNullOrWhiteSpace(rabbitHost) && !rabbitHost.Equals("localhost", StringComparison.OrdinalIgnoreCase))
             {
-                var host = configuration["RabbitMQ:Host"] ?? "localhost";
-                var vhost = configuration["RabbitMQ:VirtualHost"] ?? "/";
-                if (ushort.TryParse(configuration["RabbitMQ:Port"], out var port) && port > 0)
+                x.UsingRabbitMq((context, cfg) =>
                 {
-                    cfg.Host(host, port, vhost, h =>
+                    var vhost = configuration["RabbitMQ:VirtualHost"] ?? "/";
+                    if (ushort.TryParse(configuration["RabbitMQ:Port"], out var port) && port > 0)
                     {
-                        h.Username(configuration["RabbitMQ:Username"] ?? "guest");
-                        h.Password(configuration["RabbitMQ:Password"] ?? "guest");
-                    });
-                }
-                else
-                {
-                    cfg.Host(host, vhost, h =>
+                        cfg.Host(rabbitHost, port, vhost, h =>
+                        {
+                            h.Username(configuration["RabbitMQ:Username"] ?? "guest");
+                            h.Password(configuration["RabbitMQ:Password"] ?? "guest");
+                        });
+                    }
+                    else
                     {
-                        h.Username(configuration["RabbitMQ:Username"] ?? "guest");
-                        h.Password(configuration["RabbitMQ:Password"] ?? "guest");
-                    });
-                }
+                        cfg.Host(rabbitHost, vhost, h =>
+                        {
+                            h.Username(configuration["RabbitMQ:Username"] ?? "guest");
+                            h.Password(configuration["RabbitMQ:Password"] ?? "guest");
+                        });
+                    }
 
-                cfg.ReceiveEndpoint("payment-order-cancelled", e =>
-                {
-                    e.ConfigureConsumer<Infrastructure.Consumers.OrderCancelledConsumer>(context);
+                    cfg.ReceiveEndpoint("payment-order-cancelled", e =>
+                    {
+                        e.ConfigureConsumer<Infrastructure.Consumers.OrderCancelledConsumer>(context);
+                    });
                 });
-            });
+            }
+            else
+            {
+                x.UsingInMemory((context, cfg) =>
+                {
+                    cfg.ConfigureEndpoints(context);
+                });
+            }
         });
 
         return services;

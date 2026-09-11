@@ -10,4 +10,5 @@ public interface IInventoryClient
     Task<bool> CheckStockAsync(Guid variantId, int quantity, CancellationToken ct = default);
     Task<bool> ReserveStockAsync(Guid variantId, int quantity, Guid orderId, CancellationToken ct = default);
     Task<bool> ReleaseStockAsync(Guid variantId, int quantity, Guid orderId, CancellationToken ct = default);
+    Task<bool> DeductStockAsync(Guid orderId, List<(Guid VariantId, int Quantity)> items, CancellationToken ct = default);
 }
